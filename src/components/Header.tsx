@@ -20,11 +20,12 @@ export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: He
 
   const navigation = [
     { name: 'Ana Sayfa', href: '/', action: () => onNavigate?.('home') },
-    { name: 'Koleksiyonlar', href: '/category/collections', action: () => onNavigate?.('category', 'collections') },
-    { name: 'Yüzükler', href: '/category/rings', action: () => onNavigate?.('category', 'rings') },
-    { name: 'Kolyeler', href: '/category/necklaces', action: () => onNavigate?.('category', 'necklaces') },
-    { name: 'Küpeler', href: '/category/earrings', action: () => onNavigate?.('category', 'earrings') },
-    { name: 'Bilezikler', href: '/category/bracelets', action: () => onNavigate?.('category', 'bracelets') },
+    { name: 'Koleksiyonlar', href: '/kategori/koleksiyonlar', action: () => onNavigate?.('category', 'koleksiyonlar') },
+    { name: 'Yüzükler', href: '/kategori/yuzukler', action: () => onNavigate?.('category', 'yuzukler') },
+    { name: 'Kolyeler', href: '/kategori/kolyeler', action: () => onNavigate?.('category', 'kolyeler') },
+    { name: 'Küpeler', href: '/kategori/kupeler', action: () => onNavigate?.('category', 'kupeler') },
+    { name: 'Bilezikler', href: '/kategori/bilezikler', action: () => onNavigate?.('category', 'bilezikler') },
+    { name: 'Alyanslar', href: '/kategori/alyanslar', action: () => onNavigate?.('category', 'alyanslar') },
   ]
 
   const handleNavClick = (item: typeof navigation[0]) => {

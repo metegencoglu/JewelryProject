@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowLeft, Plus, Search, Filter, Edit, Trash2, Eye, Package, Users, ShoppingBag, TrendingUp, MessageSquare, AlertCircle, LogOut } from 'lucide-react'
+import { ArrowLeft, Plus, Search, Filter, Edit, Trash2, Eye, Package, Users, ShoppingBag, TrendingUp, MessageSquare, AlertCircle, LogOut, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Badge } from './ui/badge'
@@ -34,13 +34,14 @@ interface Product {
 
 interface AdminDashboardProps {
   onNavigate?: (page: string) => void
+  initialTab?: string
 }
 
-export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
+export function AdminDashboard({ onNavigate, initialTab = 'overview' }: AdminDashboardProps) {
   console.log('🔥 AdminDashboard component loaded!')
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [selectedTab, setSelectedTab] = useState('overview')
+  const [selectedTab, setSelectedTab] = useState(initialTab)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [newProduct, setNewProduct] = useState({
@@ -64,6 +65,7 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
   const [isEditProductOpen, setIsEditProductOpen] = useState(false)
   const [isViewProductOpen, setIsViewProductOpen] = useState(false)
   const [viewingProduct, setViewingProduct] = useState<any>(null)
+  const [selectedViewImage, setSelectedViewImage] = useState(0)
   const [editingProduct, setEditingProduct] = useState<any>(null)
   const [editProduct, setEditProduct] = useState({
     name: '',
@@ -105,6 +107,33 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
     } finally {
       setLoading(false)
       console.log('✅ fetchProducts tamamlandı')
+    }
+  }
+
+  // Tab navigation handler - router ile sayfa değiştir
+  const handleTabChange = (value: string) => {
+    console.log('🔄 Tab değişiyor:', value)
+    setSelectedTab(value)
+    
+    // Router navigation
+    switch (value) {
+      case 'overview':
+        router.push('/admin')
+        break
+      case 'products':
+        router.push('/admin/products')
+        break
+      case 'orders':
+        router.push('/admin/orders')
+        break
+      case 'customers':
+        router.push('/admin/customers')
+        break
+      case 'complaints':
+        router.push('/admin/complaints')
+        break
+      default:
+        router.push('/admin')
     }
   }
 
@@ -177,7 +206,7 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
         return
       }
 
-      if (!['rings', 'necklaces', 'earrings', 'bracelets'].includes(editProduct.category)) {
+      if (!['rings', 'necklaces', 'earrings', 'bracelets', 'wedding-rings', 'gold', 'silver', 'diamond'].includes(editProduct.category)) {
         alert('❌ Geçersiz kategori seçimi!')
         return
       }
@@ -189,7 +218,7 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
 
       const productData = {
         name: editProduct.name,
-        category: editProduct.category.toLowerCase(),
+        category: editProduct.category,
         price: parseFloat(editProduct.price),
         originalPrice: editProduct.originalPrice ? parseFloat(editProduct.originalPrice) : undefined,
         stock: parseInt(editProduct.stock),
@@ -299,8 +328,54 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
   const handleViewProduct = (product: any) => {
     console.log('Viewing product:', product)
     setViewingProduct(product)
+    setSelectedViewImage(0) // Reset to first image
     setIsViewProductOpen(true)
   }
+
+  // Admin popup carousel navigation functions
+  const nextViewImage = () => {
+    if (viewingProduct && viewingProduct.images) {
+      const totalImages = [viewingProduct.image, ...(viewingProduct.images || [])].filter(Boolean).length
+      setSelectedViewImage((prev) => (prev + 1) % totalImages)
+    }
+  }
+
+  const prevViewImage = () => {
+    if (viewingProduct && viewingProduct.images) {
+      const totalImages = [viewingProduct.image, ...(viewingProduct.images || [])].filter(Boolean).length
+      setSelectedViewImage((prev) => (prev - 1 + totalImages) % totalImages)
+    }
+  }
+
+  // Keyboard navigation for admin popup
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isViewProductOpen && viewingProduct) {
+        if (event.key === 'ArrowLeft') {
+          prevViewImage()
+        } else if (event.key === 'ArrowRight') {
+          nextViewImage()
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isViewProductOpen, viewingProduct, selectedViewImage])
+
+  // Auto-play carousel for admin popup
+  useEffect(() => {
+    if (isViewProductOpen && viewingProduct && viewingProduct.images) {
+      const totalImages = [viewingProduct.image, ...(viewingProduct.images || [])].filter(Boolean).length
+      if (totalImages > 1) {
+        const interval = setInterval(() => {
+          nextViewImage()
+        }, 5000) // 5 saniyede bir otomatik geçiş
+
+        return () => clearInterval(interval)
+      }
+    }
+  }, [isViewProductOpen, viewingProduct, selectedViewImage])
 
   const stats = [
     { title: 'Toplam Ürün', value: products.length.toString(), icon: Package, color: 'text-blue-600', change: '+12%' },
@@ -357,7 +432,7 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
         return
       }
 
-      if (!['rings', 'necklaces', 'earrings', 'bracelets'].includes(newProduct.category)) {
+      if (!['rings', 'necklaces', 'earrings', 'bracelets', 'wedding-rings', 'gold', 'silver', 'diamond'].includes(newProduct.category)) {
         alert('❌ Geçersiz kategori seçimi!')
         return
       }
@@ -369,7 +444,7 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
 
       const productData = {
         name: newProduct.name,
-        category: newProduct.category.toLowerCase(),
+        category: newProduct.category,
         price: parseFloat(newProduct.price),
         originalPrice: newProduct.originalPrice ? parseFloat(newProduct.originalPrice) : undefined,
         stock: parseInt(newProduct.stock),
@@ -551,6 +626,10 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
                             <option value="necklaces">Kolyeler</option>
                             <option value="earrings">Küpeler</option>
                             <option value="bracelets">Bilezikler</option>
+                            <option value="wedding-rings">Alyanslar</option>
+                            <option value="gold">Altın Takılar</option>
+                            <option value="silver">Gümüş Takılar</option>
+                            <option value="diamond">Pırlanta Takılar</option>
                           </select>
                         </div>
                       </div>
@@ -855,6 +934,10 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
                             <option value="necklaces">Kolyeler</option>
                             <option value="earrings">Küpeler</option>
                             <option value="bracelets">Bilezikler</option>
+                            <option value="wedding-rings">Alyanslar</option>
+                            <option value="gold">Altın Takılar</option>
+                            <option value="silver">Gümüş Takılar</option>
+                            <option value="diamond">Pırlanta Takılar</option>
                           </select>
                         </div>
                       </div>
@@ -951,6 +1034,72 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
                               />
                             </div>
                           )}
+                        </div>
+                        
+                        <div>
+                          <Label>Ek Görseller (Galeri)</Label>
+                          {editProduct.images.map((img, index) => (
+                            <div key={index} className="mt-2">
+                              <div className="flex gap-2">
+                                <Input
+                                  value={img.startsWith('data:') ? 'Dosya seçildi' : img}
+                                  onChange={(e) => {
+                                    const newImages = [...editProduct.images]
+                                    newImages[index] = e.target.value
+                                    setEditProduct({...editProduct, images: newImages})
+                                  }}
+                                  placeholder={`Görsel ${index + 1} URL veya dosya seç`}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => document.getElementById(`editGalleryImageFile-${index}`)?.click()}
+                                >
+                                  📁 Dosya Seç
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newImages = editProduct.images.filter((_, i) => i !== index)
+                                    setEditProduct({...editProduct, images: newImages})
+                                  }}
+                                >
+                                  Sil
+                                </Button>
+                              </div>
+                              <input
+                                id={`editGalleryImageFile-${index}`}
+                                type="file"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  if (file) handleEditImageUpload(file, false, index)
+                                }}
+                              />
+                              {img && (
+                                <div className="mt-2">
+                                  <img 
+                                    src={img} 
+                                    alt={`Galeri ${index + 1}`} 
+                                    className="w-16 h-16 object-cover rounded border"
+                                    onError={(e) => e.currentTarget.style.display = 'none'}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => setEditProduct({...editProduct, images: [...editProduct.images, '']})}
+                          >
+                            + Görsel Ekle
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -1062,50 +1211,112 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
                 
                 {/* Sol Taraf - Galeri */}
                 <div className="space-y-4">
-                  {/* Ana Resim */}
-                  <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200">
-                    <img 
-                      src={viewingProduct.image || 'https://via.placeholder.com/400?text=No+Image'} 
-                      alt={viewingProduct.name}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        e.currentTarget.src = 'https://via.placeholder.com/400?text=Image+Error'
-                      }}
-                    />
+                  {/* Ana Resim - Dynamic Carousel */}
+                  <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200 group">
+                    {(() => {
+                      const allImages = [viewingProduct.image, ...(viewingProduct.images || [])].filter(Boolean)
+                      const currentImage = allImages[selectedViewImage] || viewingProduct.image || 'https://via.placeholder.com/400?text=No+Image'
+                      
+                      return (
+                        <>
+                          <img 
+                            src={currentImage} 
+                            alt={viewingProduct.name}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            onError={(e) => {
+                              e.currentTarget.src = 'https://via.placeholder.com/400?text=Image+Error'
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                          
+                          {/* Navigation Arrows */}
+                          {allImages.length > 1 && (
+                            <>
+                              {/* Left Arrow */}
+                              <button
+                                onClick={prevViewImage}
+                                className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 rounded-full p-2 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 hover:shadow-xl"
+                                aria-label="Önceki görsel"
+                              >
+                                <ChevronLeft className="h-5 w-5" />
+                              </button>
+                              
+                              {/* Right Arrow */}
+                              <button
+                                onClick={nextViewImage}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 rounded-full p-2 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 hover:shadow-xl"
+                                aria-label="Sonraki görsel"
+                              >
+                                <ChevronRight className="h-5 w-5" />
+                              </button>
+                            </>
+                          )}
+                          
+                          {/* Image Counter */}
+                          {allImages.length > 1 && (
+                            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              {selectedViewImage + 1} / {allImages.length}
+                            </div>
+                          )}
+                        </>
+                      )
+                    })()}
+                    
                     {viewingProduct.badge && (
-                      <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                      <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-semibold z-10">
                         {viewingProduct.badge}
                       </div>
                     )}
                     {viewingProduct.featured && (
-                      <div className="absolute top-3 right-3 bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                      <div className="absolute top-3 right-3 bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-semibold z-10">
                         ⭐ Öne Çıkan
                       </div>
                     )}
                   </div>
 
-                  {/* Galeri - Kaydırmalı Fotoğraflar */}
-                  {viewingProduct.images && viewingProduct.images.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="font-semibold text-gray-700">Galeri</h4>
-                      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                        {viewingProduct.images.map((img: string, index: number) => (
-                          img && (
-                            <div key={index} className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-yellow-400 transition-colors cursor-pointer">
+                  {/* Enhanced Thumbnail Gallery */}
+                  {(() => {
+                    const allImages = [viewingProduct.image, ...(viewingProduct.images || [])].filter(Boolean)
+                    return allImages.length > 1 && (
+                      <div className="space-y-3">
+                        <h4 className="font-semibold text-gray-700 flex items-center gap-2">
+                          🖼️ Galeri ({allImages.length} görsel)
+                        </h4>
+                        <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                          {allImages.map((img: string, index: number) => (
+                            <button
+                              key={index}
+                              onClick={() => setSelectedViewImage(index)}
+                              className={`relative flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-all duration-300 cursor-pointer group ${
+                                selectedViewImage === index 
+                                  ? 'border-yellow-500 shadow-lg ring-2 ring-yellow-200 scale-105' 
+                                  : 'border-gray-300 hover:border-yellow-400 hover:shadow-md hover:scale-102'
+                              }`}
+                            >
                               <img 
                                 src={img} 
                                 alt={`${viewingProduct.name} ${index + 1}`}
-                                className="w-full h-full object-cover hover:scale-110 transition-transform duration-200"
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                                 onError={(e) => {
                                   e.currentTarget.src = 'https://via.placeholder.com/80?text=Error'
                                 }}
                               />
-                            </div>
-                          )
-                        ))}
+                              {/* Active indicator */}
+                              {selectedViewImage === index && (
+                                <div className="absolute inset-0 bg-yellow-500/20 border border-yellow-500/50 rounded-lg flex items-center justify-center">
+                                  <div className="w-3 h-3 bg-yellow-500 rounded-full shadow-lg"></div>
+                                </div>
+                              )}
+                              {/* Image number */}
+                              <div className="absolute bottom-1 right-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                                {index + 1}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )
+                  })()}
                 </div>
 
                 {/* Sağ Taraf - Ürün Bilgileri */}
@@ -1243,7 +1454,7 @@ export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
       </Dialog>
 
       <div className="container mx-auto px-4 py-8">
-        <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+        <Tabs value={selectedTab} onValueChange={handleTabChange}>
           <TabsList className="grid w-full grid-cols-5 mb-8">
             <TabsTrigger value="overview">Genel Bakış</TabsTrigger>
             <TabsTrigger value="products">Ürün Yönetimi</TabsTrigger>

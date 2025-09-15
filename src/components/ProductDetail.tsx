@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { Heart, Share2, ShoppingBag, Plus, Minus, Star, Shield, Truck, RotateCcw } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Heart, Share2, ShoppingBag, Plus, Minus, Star, Shield, Truck, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
@@ -15,6 +15,40 @@ export function ProductDetail({ productId }: ProductDetailProps) {
   const [selectedImage, setSelectedImage] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [isFavorite, setIsFavorite] = useState(false)
+
+  // Navigation functions for image carousel
+  const nextImage = () => {
+    setSelectedImage((prev) => (prev + 1) % product.images.length)
+  }
+
+  const prevImage = () => {
+    setSelectedImage((prev) => (prev - 1 + product.images.length) % product.images.length)
+  }
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft') {
+        prevImage()
+      } else if (event.key === 'ArrowRight') {
+        nextImage()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // Auto-play carousel (optional)
+  useEffect(() => {
+    if (product.images.length > 1) {
+      const interval = setInterval(() => {
+        nextImage()
+      }, 5000) // 5 saniyede bir otomatik geçiş
+
+      return () => clearInterval(interval)
+    }
+  }, [selectedImage])
 
   const product = {
     id: '1',
@@ -54,6 +88,36 @@ export function ProductDetail({ productId }: ProductDetailProps) {
               className="object-cover transition-transform duration-500 group-hover:scale-110"
             />
             <div className="absolute inset-0 bg-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            
+            {/* Navigation Arrows */}
+            {product.images.length > 1 && (
+              <>
+                {/* Left Arrow */}
+                <button
+                  onClick={prevImage}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 rounded-full p-2 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 hover:shadow-xl"
+                  aria-label="Önceki görsel"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                
+                {/* Right Arrow */}
+                <button
+                  onClick={nextImage}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white text-gray-800 rounded-full p-2 shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110 hover:shadow-xl"
+                  aria-label="Sonraki görsel"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </>
+            )}
+            
+            {/* Image Counter */}
+            {product.images.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-3 py-1 rounded-full text-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                {selectedImage + 1} / {product.images.length}
+              </div>
+            )}
           </div>
           
           {/* Thumbnail Images */}
@@ -62,18 +126,26 @@ export function ProductDetail({ productId }: ProductDetailProps) {
               <button
                 key={index}
                 onClick={() => setSelectedImage(index)}
-                className={`aspect-square rounded-lg overflow-hidden border-2 transition-all duration-300 hover:scale-105 ${
+                className={`aspect-square rounded-lg overflow-hidden border-2 transition-all duration-300 hover:scale-105 relative group ${
                   selectedImage === index 
-                    ? 'border-yellow-600 shadow-lg scale-105' 
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-yellow-600 shadow-lg scale-105 ring-2 ring-yellow-200' 
+                    : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
                 }`}
               >
                 <ImageWithFallback
                   src={image}
                   alt={`${product.name} ${index + 1}`}
                   fill
-                  className="object-cover"
+                  className="object-cover transition-all duration-300 group-hover:brightness-110"
                 />
+                {/* Active indicator */}
+                {selectedImage === index && (
+                  <div className="absolute inset-0 bg-yellow-600/10 flex items-center justify-center">
+                    <div className="w-2 h-2 bg-yellow-600 rounded-full animate-pulse"></div>
+                  </div>
+                )}
+                {/* Hover effect */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300"></div>
               </button>
             ))}
           </div>

@@ -22,6 +22,10 @@ export function FeaturedProducts({ onNavigate }: FeaturedProductsProps) {
       price: 8500,
       originalPrice: 9500,
       image: 'https://images.unsplash.com/photo-1721206625396-708fa98dff27?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnb2xkJTIwamV3ZWxyeSUyMGVsZWdhbnQlMjBtb2Rlcm58ZW58MXx8fHwxNzU3ODU5NjMxfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
+      images: [
+        'https://images.unsplash.com/photo-1721206625396-708fa98dff27?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
+        'https://images.unsplash.com/photo-1598724168411-9ba1e003a7fe?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800'
+      ],
       category: 'Yüzükler',
       badge: 'İndirim',
       rating: 4.8,
@@ -66,6 +70,10 @@ export function FeaturedProducts({ onNavigate }: FeaturedProductsProps) {
       name: 'Vintage Gold Ring',
       price: 4200,
       image: 'https://images.unsplash.com/photo-1598724168411-9ba1e003a7fe?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxqZXdlbHJ5JTIwd29ya3Nob3AlMjBhcnRpc2FuJTIwY3JhZnRpbmd8ZW58MXx8fHwxNzU3NzQ3NTgyfDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral',
+      images: [
+        'https://images.unsplash.com/photo-1598724168411-9ba1e003a7fe?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800',
+        'https://images.unsplash.com/photo-1652340155016-e3c66dcba7f3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=800'
+      ],
       category: 'Yüzükler',
       rating: 4.9,
       reviews: 234,

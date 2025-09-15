@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from 'react'
+import Link from 'next/link'
 import { CategoryCard } from '@/components/CategoryCard'
 import { Sparkles, TrendingUp } from 'lucide-react'
 import type { Page, Category } from '@/types'
@@ -18,28 +19,42 @@ export function Categories({ onNavigate }: CategoriesProps) {
       name: 'Yüzükler',
       image: 'https://images.unsplash.com/photo-1721206625396-708fa98dff27?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnb2xkJTIwamV3ZWxyeSUyMGVsZWdhbnQlMjBtb2Rlcm58ZW58MXx8fHwxNzU3ODU5NjMxfDA&ixlib=rb-4.1.0&q=80&w=1080',
       productCount: 127,
-      category: 'rings' as Category,
+      category: 'yuzukler' as Category,
       isPopular: true
     },
     {
       name: 'Kolyeler',
       image: 'https://images.unsplash.com/photo-1728119884904-98bc3caf518d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkaWFtb25kJTIwamV3ZWxyeSUyMGNvbGxlY3Rpb258ZW58MXx8fHwxNzU3ODU5NjMxfDA&ixlib=rb-4.1.0&q=80&w=1080',
       productCount: 89,
-      category: 'necklaces' as Category,
+      category: 'kolyeler' as Category,
       isNew: true
     },
     {
       name: 'Küpeler',
       image: 'https://images.unsplash.com/photo-1739664664545-5ea43f486f07?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxqZXdlbHJ5JTIwc3RvcmUlMjBkaXNwbGF5JTIwZWxlZ2FudHxlbnwxfHx8fDE3NTc4NTk2MzF8MA&ixlib=rb-4.1.0&q=80&w=1080',
       productCount: 156,
-      category: 'earrings' as Category,
+      category: 'kupeler' as Category,
       isPopular: true
     },
     {
       name: 'Bilezikler',
       image: 'https://images.unsplash.com/photo-1652340155016-e3c66dcba7f3?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxsdXh1cnklMjBqZXdlbHJ5JTIwcmluZ3MlMjBuZWNrbGFjZXxlbnwxfHx8fDE3NTc4NTk2MzB8MA&ixlib=rb-4.1.0&q=80&w=1080',
       productCount: 73,
-      category: 'bracelets' as Category
+      category: 'bilezikler' as Category
+    },
+    {
+      name: 'Alyanslar',
+      image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3ZWRkaW5nJTIwcmluZ3N8ZW58MXx8fHwxNzM3NzA0NzMyfDA&ixlib=rb-4.1.0&q=80&w=1080',
+      productCount: 45,
+      category: 'alyanslar' as Category,
+      isNew: true
+    },
+    {
+      name: 'Altın Takılar',
+      image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnb2xkJTIwamV3ZWxyeXxlbnwxfHx8fDE3Mzc3MDQ3MzJ8MA&ixlib=rb-4.1.0&q=80&w=1080',
+      productCount: 203,
+      category: 'altin-takilar' as Category,
+      isPopular: true
     }
   ]
 
@@ -85,15 +100,17 @@ export function Categories({ onNavigate }: CategoriesProps) {
             onMouseLeave={() => setHoveredCategory(null)}
           >
             <div className="relative h-80 md:h-96">
-              <CategoryCard 
-                name={categories[0].name}
-                image={categories[0].image}
-                productCount={categories[0].productCount}
-                onClick={() => onNavigate?.('category', categories[0].category)}
-                isHovered={hoveredCategory === categories[0].name}
-                size="large"
-                badge={categories[0].isPopular ? "Popüler" : undefined}
-              />
+              <Link href={`/kategori/${categories[0].category}`}>
+                <CategoryCard 
+                  name={categories[0].name}
+                  image={categories[0].image}
+                  productCount={categories[0].productCount}
+                  onClick={() => {}} // Empty function since Link handles navigation
+                  isHovered={hoveredCategory === categories[0].name}
+                  size="large"
+                  badge={categories[0].isPopular ? "Popüler" : undefined}
+                />
+              </Link>
             </div>
           </div>
 
@@ -104,15 +121,17 @@ export function Categories({ onNavigate }: CategoriesProps) {
             onMouseLeave={() => setHoveredCategory(null)}
           >
             <div className="relative h-80 md:h-96">
-              <CategoryCard 
-                name={categories[1].name}
-                image={categories[1].image}
-                productCount={categories[1].productCount}
-                onClick={() => onNavigate?.('category', categories[1].category)}
-                isHovered={hoveredCategory === categories[1].name}
-                size="medium"
-                badge={categories[1].isNew ? "Yeni" : undefined}
-              />
+              <Link href={`/kategori/${categories[1].category}`}>
+                <CategoryCard 
+                  name={categories[1].name}
+                  image={categories[1].image}
+                  productCount={categories[1].productCount}
+                  onClick={() => {}} // Empty function since Link handles navigation
+                  isHovered={hoveredCategory === categories[1].name}
+                  size="medium"
+                  badge={categories[1].isNew ? "Yeni" : undefined}
+                />
+              </Link>
             </div>
           </div>
 
@@ -123,15 +142,17 @@ export function Categories({ onNavigate }: CategoriesProps) {
             onMouseLeave={() => setHoveredCategory(null)}
           >
             <div className="relative h-80">
-              <CategoryCard 
-                name={categories[2].name}
-                image={categories[2].image}
-                productCount={categories[2].productCount}
-                onClick={() => onNavigate?.('category', categories[2].category)}
-                isHovered={hoveredCategory === categories[2].name}
-                size="medium"
-                badge={categories[2].isPopular ? "Trend" : undefined}
-              />
+              <Link href={`/kategori/${categories[2].category}`}>
+                <CategoryCard 
+                  name={categories[2].name}
+                  image={categories[2].image}
+                  productCount={categories[2].productCount}
+                  onClick={() => {}} // Empty function since Link handles navigation
+                  isHovered={hoveredCategory === categories[2].name}
+                  size="medium"
+                  badge={categories[2].isPopular ? "Trend" : undefined}
+                />
+              </Link>
             </div>
           </div>
 
@@ -142,14 +163,58 @@ export function Categories({ onNavigate }: CategoriesProps) {
             onMouseLeave={() => setHoveredCategory(null)}
           >
             <div className="relative h-80">
-              <CategoryCard 
-                name={categories[3].name}
-                image={categories[3].image}
-                productCount={categories[3].productCount}
-                onClick={() => onNavigate?.('category', categories[3].category)}
-                isHovered={hoveredCategory === categories[3].name}
-                size="large"
-              />
+              <Link href={`/kategori/${categories[3].category}`}>
+                <CategoryCard 
+                  name={categories[3].name}
+                  image={categories[3].image}
+                  productCount={categories[3].productCount}
+                  onClick={() => {}} // Empty function since Link handles navigation
+                  isHovered={hoveredCategory === categories[3].name}
+                  size="large"
+                />
+              </Link>
+            </div>
+          </div>
+
+          {/* Fifth category - New Row */}
+          <div
+            className="md:col-span-6 relative group"
+            onMouseEnter={() => setHoveredCategory(categories[4].name)}
+            onMouseLeave={() => setHoveredCategory(null)}
+          >
+            <div className="relative h-80">
+              <Link href={`/kategori/${categories[4].category}`}>
+                <CategoryCard 
+                  name={categories[4].name}
+                  image={categories[4].image}
+                  productCount={categories[4].productCount}
+                  onClick={() => {}} // Empty function since Link handles navigation
+                  isHovered={hoveredCategory === categories[4].name}
+                  size="medium"
+                  badge={categories[4].isNew ? "Yeni" : undefined}
+                />
+              </Link>
+            </div>
+          </div>
+
+          {/* Sixth category */}
+          <div
+            className="md:col-span-6 relative group"
+            onMouseEnter={() => setHoveredCategory(categories[5].name)}
+            onMouseLeave={() => setHoveredCategory(null)}
+          >
+            <div className="relative h-80">
+              <Link href={`/kategori/${categories[5].category}`}>
+                <CategoryCard 
+                  name={categories[5].name}
+                  image={categories[5].image}
+                  productCount={categories[5].productCount}
+                  onClick={() => {}} // Empty function since Link handles navigation
+                  isHovered={hoveredCategory === categories[5].name}
+                  size="medium"
+                  badge={categories[5].isPopular ? "Popüler" : undefined}
+                />
+              </Link>
             </div>
           </div>
         </div>
