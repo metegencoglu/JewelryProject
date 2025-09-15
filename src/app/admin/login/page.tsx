@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
 import { Eye, EyeOff, Shield, Loader2, AlertCircle } from 'lucide-react'
+import { signIn, getSession, useSession } from 'next-auth/react'
 
 export default function AdminLoginPage() {
+  const { data: session, status } = useSession()
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -16,21 +18,17 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-  
   const router = useRouter()
 
-  // Admin girişi kontrolü
+  // Admin session kontrolü
   useEffect(() => {
-    const checkAdminAuth = () => {
-      const token = localStorage.getItem('adminToken')
-      if (token) {
-        setIsLoggedIn(true)
-        router.push('/admin')
-      }
+    if (status === 'loading') return // Loading durumu
+    
+    if (session && session.user?.role === 'admin') {
+      console.log('✅ Admin zaten giriş yapmış, yönlendiriliyor')
+      router.push('/admin')
     }
-    checkAdminAuth()
-  }, [router])
+  }, [session, status, router])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -46,42 +44,54 @@ export default function AdminLoginPage() {
     setError('')
 
     try {
-      // Geçici sabit admin bilgileri - veritabanı olmadan
-      const TEMP_ADMIN_EMAIL = 'admin@luxejewelry.com'
-      const TEMP_ADMIN_PASSWORD = 'admin123'
+      const result = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      })
 
-      if (formData.email === TEMP_ADMIN_EMAIL && formData.password === TEMP_ADMIN_PASSWORD) {
-        // Geçici admin kullanıcı bilgisi oluştur
-        const tempAdminUser = {
-          _id: 'temp-admin-id',
-          email: TEMP_ADMIN_EMAIL,
-          name: 'Admin User',
-          role: 'admin'
-        }
-
-        // Admin token'ı sakla
-        localStorage.setItem('adminToken', 'temp-admin-token')
-        localStorage.setItem('adminUser', JSON.stringify(tempAdminUser))
+      if (result?.error) {
+        setError(result.error)
+        console.error('Admin login error:', result.error)
+      } else if (result?.ok) {
+        // Session'u kontrol et ve admin kontrolü yap
+        const session = await getSession()
         
-        // Admin panel'e yönlendir
-        router.push('/admin')
-      } else {
-        setError('Email veya şifre hatalı. Admin bilgileri: admin@luxejewelry.com / admin123')
+        if (session?.user?.role === 'admin') {
+          console.log('✅ Admin login successful:', session.user.email)
+          router.push('/admin')
+        } else {
+          setError('Admin yetkisi gerekli! Bu hesap admin değil.')
+        }
       }
-    } catch (error) {
-      console.error('Login error:', error)
-      setError('Giriş hatası oluştu.')
+    } catch (error: any) {
+      console.error('Admin login error:', error)
+      setError('Giriş sırasında bir hata oluştu')
     } finally {
       setIsLoading(false)
     }
   }
 
-  if (isLoggedIn) {
+  // Loading durumu
+  if (status === 'loading') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-yellow-600" />
-          <p className="text-gray-600">Admin paneline yönlendiriliyor...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Oturum kontrol ediliyor...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Admin girişi başarılı
+  if (session && session.user?.role === 'admin') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-green-600 text-6xl mb-4">✅</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Giriş Yapılıyor</h2>
+          <p className="text-gray-600 mb-4">Admin paneline yönlendiriliyor...</p>
         </div>
       </div>
     )
@@ -122,7 +132,7 @@ export default function AdminLoginPage() {
               type="email"
               value={formData.email}
               onChange={handleChange}
-              placeholder="admin@luxejewelry.com"
+              placeholder="admin@test.com"
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
               required
               disabled={isLoading}
@@ -179,9 +189,9 @@ export default function AdminLoginPage() {
         {/* Test bilgileri - sadece development için */}
         {process.env.NODE_ENV === 'development' && (
           <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-xs font-medium text-blue-800 mb-2">Test Hesabı:</p>
+            <p className="text-xs font-medium text-blue-800 mb-2">🧪 Test Hesabı:</p>
             <p className="text-xs text-blue-700">
-              Email: admin@luxejewelry.com<br />
+              Email: admin@test.com<br />
               Şifre: admin123
             </p>
           </div>

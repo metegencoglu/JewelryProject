@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ArrowLeft, Plus, Search, Filter, Edit, Trash2, Eye, Package, Users, ShoppingBag, TrendingUp, MessageSquare, AlertCircle, LogOut } from 'lucide-react'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Textarea } from './ui/textarea'
 import { Label } from './ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog'
+import { useSession, signOut } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 
 interface AdminUser {
   _id: string
@@ -19,34 +21,292 @@ interface AdminUser {
   role: string
 }
 
-interface AdminDashboardProps {
-  onNavigate?: (page: string) => void
-  adminUser?: AdminUser | null
+interface Product {
+  _id: string
+  name: string
+  category: string
+  price: number
+  stock: number
+  image: string
+  isActive: boolean
+  featured: boolean
 }
 
-export function AdminDashboard({ onNavigate, adminUser }: AdminDashboardProps) {
+interface AdminDashboardProps {
+  onNavigate?: (page: string) => void
+}
+
+export function AdminDashboard({ onNavigate }: AdminDashboardProps) {
+  console.log('🔥 AdminDashboard component loaded!')
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const [selectedTab, setSelectedTab] = useState('overview')
+  const [products, setProducts] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
   const [newProduct, setNewProduct] = useState({
     name: '',
     category: '',
     price: '',
+    originalPrice: '',
     stock: '',
-    description: ''
+    description: '',
+    image: '',
+    images: [''],
+    badge: '',
+    specifications: {
+      material: '',
+      weight: '',
+      dimensions: ''
+    },
+    featured: false
   })
   const [isAddProductOpen, setIsAddProductOpen] = useState(false)
+  const [isEditProductOpen, setIsEditProductOpen] = useState(false)
+  const [isViewProductOpen, setIsViewProductOpen] = useState(false)
+  const [viewingProduct, setViewingProduct] = useState<any>(null)
+  const [editingProduct, setEditingProduct] = useState<any>(null)
+  const [editProduct, setEditProduct] = useState({
+    name: '',
+    category: '',
+    price: '',
+    originalPrice: '',
+    stock: '',
+    description: '',
+    image: '',
+    images: [''],
+    badge: '',
+    specifications: {
+      material: '',
+      weight: '',
+      dimensions: ''
+    },
+    featured: false
+  })
+
+  // Ürünleri yükle
+  const fetchProducts = async () => {
+    try {
+      console.log('🔄 fetchProducts başlatıldı')
+      setLoading(true)
+      const response = await fetch('/api/products')
+      console.log('📡 API response status:', response.status)
+      const data = await response.json()
+      console.log('📦 Fetched products data:', data)
+      if (data.success) {
+        console.log('✅ Products başarıyla alındı:', data.products.length, 'adet')
+        console.log('🆔 Products with IDs:', data.products.map((p: any) => ({ id: p._id, name: p.name })))
+        setProducts(data.products)
+        console.log('📋 State güncellendi')
+      } else {
+        console.error('❌ API başarısız:', data.error)
+      }
+    } catch (error) {
+      console.error('💥 Ürünler yüklenirken hata:', error)
+    } finally {
+      setLoading(false)
+      console.log('✅ fetchProducts tamamlandı')
+    }
+  }
+
+  useEffect(() => {
+    // Middleware zaten auth kontrolü yapıyor, sadece data fetch
+    if (status === 'loading') return
+    
+    if (session?.user?.role === 'admin') {
+      console.log('✅ Admin session doğrulandı:', session.user.email)
+      fetchProducts()
+    }
+  }, [session, status])
+
+  // Dosya seçme fonksiyonu
+  const handleImageUpload = (file: File, isMainImage: boolean = true, index?: number) => {
+    if (!file.type.startsWith('image/')) {
+      alert('❌ Lütfen sadece görsel dosyası seçin!')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      
+      if (isMainImage) {
+        setNewProduct({...newProduct, image: result})
+      } else if (index !== undefined) {
+        const newImages = [...newProduct.images]
+        newImages[index] = result
+        setNewProduct({...newProduct, images: newImages})
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Ürün düzenleme başlat
+  const handleEditProduct = (product: any) => {
+    console.log('Editing product:', product)
+    setEditingProduct(product)
+    setEditProduct({
+      name: product.name || '',
+      category: product.category || '',
+      price: product.price?.toString() || '',
+      originalPrice: product.originalPrice?.toString() || '',
+      stock: product.stock?.toString() || '',
+      description: product.description || '',
+      image: product.image || '',
+      images: product.images || [''],
+      badge: product.badge || '',
+      specifications: {
+        material: product.specifications?.material || '',
+        weight: product.specifications?.weight || '',
+        dimensions: product.specifications?.dimensions || ''
+      },
+      featured: product.featured || false
+    })
+    setIsEditProductOpen(true)
+  }
+
+  // Ürün güncelleme fonksiyonu
+  const handleUpdateProduct = async () => {
+    if (!editingProduct) return
+
+    try {
+      console.log('Updating product:', editingProduct._id, editProduct)
+      
+      // Validation
+      if (!editProduct.name || !editProduct.category || !editProduct.price || !editProduct.stock) {
+        alert('❌ Lütfen tüm zorunlu alanları doldurun!')
+        return
+      }
+
+      if (!['rings', 'necklaces', 'earrings', 'bracelets'].includes(editProduct.category)) {
+        alert('❌ Geçersiz kategori seçimi!')
+        return
+      }
+
+      if (!editProduct.image) {
+        alert('❌ Ana görsel zorunludur!')
+        return
+      }
+
+      const productData = {
+        name: editProduct.name,
+        category: editProduct.category.toLowerCase(),
+        price: parseFloat(editProduct.price),
+        originalPrice: editProduct.originalPrice ? parseFloat(editProduct.originalPrice) : undefined,
+        stock: parseInt(editProduct.stock),
+        description: editProduct.description || 'Açıklama yok',
+        image: editProduct.image,
+        images: editProduct.images.filter(img => img.trim() !== ''),
+        badge: editProduct.badge || undefined,
+        specifications: {
+          material: editProduct.specifications.material || "Belirtilmemiş",
+          weight: editProduct.specifications.weight || "Belirtilmemiş",
+          dimensions: editProduct.specifications.dimensions || "Belirtilmemiş"
+        },
+        featured: editProduct.featured,
+        isActive: true
+      }
+
+      console.log('Sending update data:', productData)
+      
+      // API'ye güncelleme isteği gönder
+      const response = await fetch(`/api/products/${editingProduct._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(productData)
+      })
+
+      console.log('Update response status:', response.status)
+      const result = await response.json()
+      console.log('Update response data:', result)
+      
+      if (result.success) {
+        alert('✅ Ürün başarıyla güncellendi!')
+        // Ürün listesini yenile
+        await fetchProducts()
+        setIsEditProductOpen(false)
+        setEditingProduct(null)
+      } else {
+        alert('❌ Ürün güncellenemedi: ' + result.error)
+        console.error('Ürün güncelleme hatası:', result.error)
+      }
+    } catch (error: any) {
+      alert('❌ Bağlantı hatası: ' + error.message)
+      console.error('API hatası:', error)
+    }
+  }
+
+  // Edit için dosya upload fonksiyonu
+  const handleEditImageUpload = (file: File, isMainImage: boolean = true, index?: number) => {
+    if (!file.type.startsWith('image/')) {
+      alert('❌ Lütfen sadece görsel dosyası seçin!')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      
+      if (isMainImage) {
+        setEditProduct({...editProduct, image: result})
+      } else if (index !== undefined) {
+        const newImages = [...editProduct.images]
+        newImages[index] = result
+        setEditProduct({...editProduct, images: newImages})
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Ürün silme fonksiyonu
+  const handleDeleteProduct = async (productId: string, productName: string) => {
+    console.log('Attempting to delete product:', { productId, productName, type: typeof productId })
+    
+    if (!confirm(`"${productName}" adlı ürünü silmek istediğinizden emin misiniz?`)) {
+      return
+    }
+
+    try {
+      console.log('Sending DELETE request to:', `/api/products/${productId}`)
+      
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+
+      console.log('Response status:', response.status)
+      const result = await response.json()
+      console.log('Delete response:', result)
+      
+      if (result.success) {
+        alert('✅ Ürün başarıyla silindi!')
+        // Ürün listesini yenile
+        await fetchProducts()
+      } else {
+        alert('❌ Ürün silinemedi: ' + result.error)
+        console.error('Ürün silme hatası:', result.error)
+      }
+    } catch (error: any) {
+      alert('❌ Bağlantı hatası: ' + error.message)
+      console.error('API hatası:', error)
+    }
+  }
+
+  // Ürün görüntüleme fonksiyonu
+  const handleViewProduct = (product: any) => {
+    console.log('Viewing product:', product)
+    setViewingProduct(product)
+    setIsViewProductOpen(true)
+  }
 
   const stats = [
-    { title: 'Toplam Ürün', value: '1,247', icon: Package, color: 'text-blue-600', change: '+12%' },
+    { title: 'Toplam Ürün', value: products.length.toString(), icon: Package, color: 'text-blue-600', change: '+12%' },
     { title: 'Aktif Kullanıcı', value: '856', icon: Users, color: 'text-green-600', change: '+8%' },
     { title: 'Bugünkü Sipariş', value: '34', icon: ShoppingBag, color: 'text-purple-600', change: '+23%' },
     { title: 'Aylık Gelir', value: '₺125,500', icon: TrendingUp, color: 'text-yellow-600', change: '+15%' },
-  ]
-
-  const products = [
-    { id: 1, name: 'Elegant Diamond Ring', category: 'Yüzükler', price: 8500, stock: 5, status: 'active', image: 'https://images.unsplash.com/photo-1603561596112-bb4de88e2bee?w=100' },
-    { id: 2, name: 'Classic Pearl Necklace', category: 'Kolyeler', price: 3200, stock: 12, status: 'active', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=100' },
-    { id: 3, name: 'Gold Chain Bracelet', category: 'Bilezikler', price: 2800, stock: 0, status: 'inactive', image: 'https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=100' },
-    { id: 4, name: 'Silver Drop Earrings', category: 'Küpeler', price: 1850, stock: 8, status: 'active', image: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=100' },
   ]
 
   const orders = [
@@ -75,10 +335,132 @@ export function AdminDashboard({ onNavigate, adminUser }: AdminDashboardProps) {
     return variants[status as keyof typeof variants] || 'bg-gray-100 text-gray-800'
   }
 
-  const handleAddProduct = () => {
-    console.log('Adding product:', newProduct)
-    setIsAddProductOpen(false)
-    setNewProduct({ name: '', category: '', price: '', stock: '', description: '' })
+  const handleAddProduct = async () => {
+    try {
+      console.log('Adding product:', newProduct)
+      
+      // Validation
+      if (!newProduct.name || !newProduct.category || !newProduct.price || !newProduct.stock) {
+        alert('❌ Lütfen tüm zorunlu alanları doldurun!')
+        return
+      }
+
+      // Fiyat kontrolü
+      const priceValue = parseFloat(newProduct.price)
+      if (isNaN(priceValue) || priceValue < 0) {
+        alert('❌ Geçerli bir fiyat girin!')
+        return
+      }
+
+      if (priceValue > Number.MAX_SAFE_INTEGER) {
+        alert('❌ Fiyat çok büyük! Maksimum: ' + Number.MAX_SAFE_INTEGER.toLocaleString('tr-TR'))
+        return
+      }
+
+      if (!['rings', 'necklaces', 'earrings', 'bracelets'].includes(newProduct.category)) {
+        alert('❌ Geçersiz kategori seçimi!')
+        return
+      }
+
+      if (!newProduct.image) {
+        alert('❌ Ana görsel URL\'si zorunludur!')
+        return
+      }
+
+      const productData = {
+        name: newProduct.name,
+        category: newProduct.category.toLowerCase(),
+        price: parseFloat(newProduct.price),
+        originalPrice: newProduct.originalPrice ? parseFloat(newProduct.originalPrice) : undefined,
+        stock: parseInt(newProduct.stock),
+        description: newProduct.description || 'Açıklama yok',
+        image: newProduct.image,
+        images: newProduct.images.filter(img => img.trim() !== ''),
+        badge: newProduct.badge || undefined,
+        rating: 0,
+        reviews: 0,
+        specifications: {
+          material: newProduct.specifications.material || "Belirtilmemiş",
+          weight: newProduct.specifications.weight || "Belirtilmemiş",
+          dimensions: newProduct.specifications.dimensions || "Belirtilmemiş"
+        },
+        featured: newProduct.featured,
+        isActive: true
+      }
+
+      console.log('📊 Product data price check:', {
+        originalPrice: newProduct.price,
+        parsedPrice: parseFloat(newProduct.price),
+        type: typeof parseFloat(newProduct.price),
+        isNaN: isNaN(parseFloat(newProduct.price))
+      })
+      console.log('🚀 Sending product data:', productData)
+      
+      // API'ye ürün ekleme isteği gönder
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(productData)
+      })
+
+      console.log('Response status:', response.status)
+      const result = await response.json()
+      console.log('Response data:', result)
+      
+      if (result.success) {
+        alert('✅ Ürün başarıyla eklendi!')
+        console.log('✅ Ürün eklendi:', result.product)
+        
+        // Yeni ürünü listeye manuel ekle (optimistic update)
+        setProducts(prevProducts => [...prevProducts, result.product])
+        
+        console.log('🔄 fetchProducts çağrılıyor...')
+        // Ürün listesini yenile (doğrulama için) - kısa gecikme ile
+        setTimeout(async () => {
+          await fetchProducts()
+        }, 500)
+        
+        console.log('📝 Form temizleniyor...')
+        setIsAddProductOpen(false)
+        setNewProduct({ 
+          name: '', 
+          category: '', 
+          price: '', 
+          originalPrice: '',
+          stock: '', 
+          description: '',
+          image: '',
+          images: [''],
+          badge: '',
+          specifications: {
+            material: '',
+            weight: '',
+            dimensions: ''
+          },
+          featured: false
+        })
+      } else {
+        alert('❌ Ürün eklenemedi: ' + result.error)
+        console.error('Ürün ekleme hatası:', result.error)
+      }
+    } catch (error: any) {
+      alert('❌ Bağlantı hatası: ' + error.message)
+      console.error('API hatası:', error)
+    }
+  }
+
+  // Simple loading state
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Yükleniyor...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -101,15 +483,15 @@ export function AdminDashboard({ onNavigate, adminUser }: AdminDashboardProps) {
               <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
             </div>
             <div className="flex items-center gap-4">
-              {adminUser && (
+              {session?.user && (
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{adminUser.name}</p>
-                    <p className="text-xs text-gray-500">{adminUser.email}</p>
+                    <p className="text-sm font-medium text-gray-900">{session.user.name}</p>
+                    <p className="text-xs text-gray-500">{session.user.email}</p>
                   </div>
                   <div className="w-8 h-8 bg-yellow-600 rounded-full flex items-center justify-center">
                     <span className="text-white text-sm font-semibold">
-                      {adminUser.name.charAt(0).toUpperCase()}
+                      {session.user.name?.charAt(0).toUpperCase()}
                     </span>
                   </div>
                 </div>
@@ -117,7 +499,10 @@ export function AdminDashboard({ onNavigate, adminUser }: AdminDashboardProps) {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => onNavigate?.('logout')}
+                onClick={async () => {
+                  console.log('🚪 Çıkış yapılıyor...')
+                  await signOut({ callbackUrl: '/' })
+                }}
                 className="text-red-600 hover:bg-red-50 hover:border-red-300"
               >
                 <LogOut className="h-4 w-4 mr-2" />
@@ -127,70 +512,305 @@ export function AdminDashboard({ onNavigate, adminUser }: AdminDashboardProps) {
                 <Filter className="h-4 w-4 mr-2" />
                 Filtrele
               </Button>
-              <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-yellow-600 hover:bg-yellow-700 text-white">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Yeni Ürün
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Yeni Ürün Ekle</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div>
-                      <Label htmlFor="name">Ürün Adı</Label>
-                      <Input
-                        id="name"
-                        value={newProduct.name}
-                        onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-                        placeholder="Ürün adını girin"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="category">Kategori</Label>
-                      <Input
-                        id="category"
-                        value={newProduct.category}
-                        onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
-                        placeholder="Kategori seçin"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="price">Fiyat (₺)</Label>
-                        <Input
-                          id="price"
-                          type="number"
-                          value={newProduct.price}
-                          onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
-                          placeholder="0"
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Product Add Dialog */}
+      <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Yeni Ürün Ekle</DialogTitle>
+          </DialogHeader>
+                  <div className="space-y-6 py-4">
+                    {/* Temel Bilgiler */}
+                    <div className="border-b pb-4">
+                      <h3 className="text-lg font-semibold mb-4">Temel Bilgiler</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="name">Ürün Adı *</Label>
+                          <Input
+                            id="name"
+                            value={newProduct.name}
+                            onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                            placeholder="Ürün adını girin"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="category">Kategori *</Label>
+                          <select
+                            id="category"
+                            value={newProduct.category}
+                            onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            required
+                          >
+                            <option value="">Kategori seçin</option>
+                            <option value="rings">Yüzükler</option>
+                            <option value="necklaces">Kolyeler</option>
+                            <option value="earrings">Küpeler</option>
+                            <option value="bracelets">Bilezikler</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4">
+                        <Label htmlFor="description">Açıklama</Label>
+                        <Textarea
+                          id="description"
+                          value={newProduct.description}
+                          onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                          placeholder="Ürün açıklaması"
+                          rows={3}
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="stock">Stok</Label>
-                        <Input
-                          id="stock"
-                          type="number"
-                          value={newProduct.stock}
-                          onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
-                          placeholder="0"
-                        />
+                    </div>
+
+                    {/* Fiyat ve Stok */}
+                    <div className="border-b pb-4">
+                      <h3 className="text-lg font-semibold mb-4">Fiyat ve Stok</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="price">Satış Fiyatı (₺) *</Label>
+                          <Input
+                            id="price"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={newProduct.price}
+                            onChange={(e) => {
+                              console.log('💰 Price input changed:', e.target.value)
+                              setNewProduct({...newProduct, price: e.target.value})
+                            }}
+                            placeholder="0"
+                          />
+                          {newProduct.price && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              Formatlanmış: ₺{parseFloat(newProduct.price || '0').toLocaleString('tr-TR')}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <Label htmlFor="originalPrice">Orijinal Fiyat (₺)</Label>
+                          <Input
+                            id="originalPrice"
+                            type="number"
+                            value={newProduct.originalPrice}
+                            onChange={(e) => setNewProduct({...newProduct, originalPrice: e.target.value})}
+                            placeholder="İndirim varsa orijinal fiyat"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="stock">Stok Adedi *</Label>
+                          <Input
+                            id="stock"
+                            type="number"
+                            value={newProduct.stock}
+                            onChange={(e) => setNewProduct({...newProduct, stock: e.target.value})}
+                            placeholder="0"
+                          />
+                        </div>
                       </div>
                     </div>
+
+                    {/* Görseller */}
+                    <div className="border-b pb-4">
+                      <h3 className="text-lg font-semibold mb-4">Görseller</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="image">Ana Görsel *</Label>
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <Input
+                                id="image"
+                                value={newProduct.image.startsWith('data:') ? 'Dosya seçildi' : newProduct.image}
+                                onChange={(e) => setNewProduct({...newProduct, image: e.target.value})}
+                                placeholder="https://example.com/image.jpg veya dosya seç"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => document.getElementById('mainImageFile')?.click()}
+                              >
+                                📁 Dosya Seç
+                              </Button>
+                            </div>
+                            <input
+                              id="mainImageFile"
+                              type="file"
+                              accept="image/*"
+                              style={{ display: 'none' }}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) handleImageUpload(file, true)
+                              }}
+                            />
+                          </div>
+                          {newProduct.image && (
+                            <div className="mt-2">
+                              <img 
+                                src={newProduct.image} 
+                                alt="Önizleme" 
+                                className="w-20 h-20 object-cover rounded border"
+                                onError={(e) => e.currentTarget.style.display = 'none'}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        
+                        <div>
+                          <Label>Ek Görseller (Galeri)</Label>
+                          {newProduct.images.map((img, index) => (
+                            <div key={index} className="mt-2">
+                              <div className="flex gap-2">
+                                <Input
+                                  value={img.startsWith('data:') ? 'Dosya seçildi' : img}
+                                  onChange={(e) => {
+                                    const newImages = [...newProduct.images]
+                                    newImages[index] = e.target.value
+                                    setNewProduct({...newProduct, images: newImages})
+                                  }}
+                                  placeholder={`Görsel ${index + 1} URL veya dosya seç`}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => document.getElementById(`galleryImageFile-${index}`)?.click()}
+                                >
+                                  📁 Dosya Seç
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newImages = newProduct.images.filter((_, i) => i !== index)
+                                    setNewProduct({...newProduct, images: newImages})
+                                  }}
+                                >
+                                  Sil
+                                </Button>
+                              </div>
+                              <input
+                                id={`galleryImageFile-${index}`}
+                                type="file"
+                                accept="image/*"
+                                style={{ display: 'none' }}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0]
+                                  if (file) handleImageUpload(file, false, index)
+                                }}
+                              />
+                              {img && (
+                                <div className="mt-2">
+                                  <img 
+                                    src={img} 
+                                    alt={`Galeri ${index + 1}`} 
+                                    className="w-16 h-16 object-cover rounded border"
+                                    onError={(e) => e.currentTarget.style.display = 'none'}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => setNewProduct({...newProduct, images: [...newProduct.images, '']})}
+                          >
+                            + Görsel Ekle
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Özellikler */}
+                    <div className="border-b pb-4">
+                      <h3 className="text-lg font-semibold mb-4">Ürün Özellikleri</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="material">Malzeme</Label>
+                          <Input
+                            id="material"
+                            value={newProduct.specifications.material}
+                            onChange={(e) => setNewProduct({
+                              ...newProduct, 
+                              specifications: {
+                                ...newProduct.specifications,
+                                material: e.target.value
+                              }
+                            })}
+                            placeholder="Örn: 925 Ayar Gümüş"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="weight">Ağırlık</Label>
+                          <Input
+                            id="weight"
+                            value={newProduct.specifications.weight}
+                            onChange={(e) => setNewProduct({
+                              ...newProduct, 
+                              specifications: {
+                                ...newProduct.specifications,
+                                weight: e.target.value
+                              }
+                            })}
+                            placeholder="Örn: 2.5g"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="dimensions">Boyutlar</Label>
+                          <Input
+                            id="dimensions"
+                            value={newProduct.specifications.dimensions}
+                            onChange={(e) => setNewProduct({
+                              ...newProduct, 
+                              specifications: {
+                                ...newProduct.specifications,
+                                dimensions: e.target.value
+                              }
+                            })}
+                            placeholder="Örn: 15mm x 10mm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Etiket ve Özellikler */}
                     <div>
-                      <Label htmlFor="description">Açıklama</Label>
-                      <Textarea
-                        id="description"
-                        value={newProduct.description}
-                        onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
-                        placeholder="Ürün açıklaması"
-                        rows={3}
-                      />
+                      <h3 className="text-lg font-semibold mb-4">Etiket ve Özellikler</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="badge">Etiket</Label>
+                          <select
+                            id="badge"
+                            value={newProduct.badge}
+                            onChange={(e) => setNewProduct({...newProduct, badge: e.target.value})}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <option value="">Etiket yok</option>
+                            <option value="Yeni">Yeni</option>
+                            <option value="İndirim">İndirim</option>
+                            <option value="Popüler">Popüler</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center space-x-2 pt-6">
+                          <input
+                            type="checkbox"
+                            id="featured"
+                            checked={newProduct.featured}
+                            onChange={(e) => setNewProduct({...newProduct, featured: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          <Label htmlFor="featured">Öne Çıkarılmış Ürün</Label>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex justify-end gap-2">
+                  <div className="flex justify-end gap-2 pt-4 border-t">
                     <Button variant="outline" onClick={() => setIsAddProductOpen(false)}>
                       İptal
                     </Button>
@@ -198,12 +818,429 @@ export function AdminDashboard({ onNavigate, adminUser }: AdminDashboardProps) {
                       Ürün Ekle
                     </Button>
                   </div>
-                </DialogContent>
-              </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* Product Edit Dialog */}
+      <Dialog open={isEditProductOpen} onOpenChange={setIsEditProductOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ürünü Düzenle: {editingProduct?.name}</DialogTitle>
+          </DialogHeader>
+                  <div className="space-y-6 py-4">
+                    {/* Temel Bilgiler */}
+                    <div className="border-b pb-4">
+                      <h3 className="text-lg font-semibold mb-4">Temel Bilgiler</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="edit-name">Ürün Adı *</Label>
+                          <Input
+                            id="edit-name"
+                            value={editProduct.name}
+                            onChange={(e) => setEditProduct({...editProduct, name: e.target.value})}
+                            placeholder="Ürün adını girin"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="edit-category">Kategori *</Label>
+                          <select
+                            id="edit-category"
+                            value={editProduct.category}
+                            onChange={(e) => setEditProduct({...editProduct, category: e.target.value})}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            required
+                          >
+                            <option value="">Kategori seçin</option>
+                            <option value="rings">Yüzükler</option>
+                            <option value="necklaces">Kolyeler</option>
+                            <option value="earrings">Küpeler</option>
+                            <option value="bracelets">Bilezikler</option>
+                          </select>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4">
+                        <Label htmlFor="edit-description">Açıklama</Label>
+                        <Textarea
+                          id="edit-description"
+                          value={editProduct.description}
+                          onChange={(e) => setEditProduct({...editProduct, description: e.target.value})}
+                          placeholder="Ürün açıklaması"
+                          rows={3}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Fiyat ve Stok */}
+                    <div className="border-b pb-4">
+                      <h3 className="text-lg font-semibold mb-4">Fiyat ve Stok</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="edit-price">Satış Fiyatı (₺) *</Label>
+                          <Input
+                            id="edit-price"
+                            type="number"
+                            value={editProduct.price}
+                            onChange={(e) => setEditProduct({...editProduct, price: e.target.value})}
+                            placeholder="0"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="edit-originalPrice">Orijinal Fiyat (₺)</Label>
+                          <Input
+                            id="edit-originalPrice"
+                            type="number"
+                            value={editProduct.originalPrice}
+                            onChange={(e) => setEditProduct({...editProduct, originalPrice: e.target.value})}
+                            placeholder="İndirim varsa orijinal fiyat"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="edit-stock">Stok Adedi *</Label>
+                          <Input
+                            id="edit-stock"
+                            type="number"
+                            value={editProduct.stock}
+                            onChange={(e) => setEditProduct({...editProduct, stock: e.target.value})}
+                            placeholder="0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Görseller */}
+                    <div className="border-b pb-4">
+                      <h3 className="text-lg font-semibold mb-4">Görseller</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="edit-image">Ana Görsel *</Label>
+                          <div className="space-y-2">
+                            <div className="flex gap-2">
+                              <Input
+                                id="edit-image"
+                                value={editProduct.image.startsWith('data:') ? 'Dosya seçildi' : editProduct.image}
+                                onChange={(e) => setEditProduct({...editProduct, image: e.target.value})}
+                                placeholder="https://example.com/image.jpg veya dosya seç"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => document.getElementById('editMainImageFile')?.click()}
+                              >
+                                📁 Dosya Seç
+                              </Button>
+                            </div>
+                            <input
+                              id="editMainImageFile"
+                              type="file"
+                              accept="image/*"
+                              style={{ display: 'none' }}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) handleEditImageUpload(file, true)
+                              }}
+                            />
+                          </div>
+                          {editProduct.image && (
+                            <div className="mt-2">
+                              <img 
+                                src={editProduct.image} 
+                                alt="Önizleme" 
+                                className="w-20 h-20 object-cover rounded border"
+                                onError={(e) => e.currentTarget.style.display = 'none'}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Özellikler */}
+                    <div className="border-b pb-4">
+                      <h3 className="text-lg font-semibold mb-4">Ürün Özellikleri</h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <Label htmlFor="edit-material">Malzeme</Label>
+                          <Input
+                            id="edit-material"
+                            value={editProduct.specifications.material}
+                            onChange={(e) => setEditProduct({
+                              ...editProduct, 
+                              specifications: {
+                                ...editProduct.specifications,
+                                material: e.target.value
+                              }
+                            })}
+                            placeholder="Örn: 925 Ayar Gümüş"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="edit-weight">Ağırlık</Label>
+                          <Input
+                            id="edit-weight"
+                            value={editProduct.specifications.weight}
+                            onChange={(e) => setEditProduct({
+                              ...editProduct, 
+                              specifications: {
+                                ...editProduct.specifications,
+                                weight: e.target.value
+                              }
+                            })}
+                            placeholder="Örn: 2.5g"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="edit-dimensions">Boyutlar</Label>
+                          <Input
+                            id="edit-dimensions"
+                            value={editProduct.specifications.dimensions}
+                            onChange={(e) => setEditProduct({
+                              ...editProduct, 
+                              specifications: {
+                                ...editProduct.specifications,
+                                dimensions: e.target.value
+                              }
+                            })}
+                            placeholder="Örn: 15mm x 10mm"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Etiket ve Özellikler */}
+                    <div>
+                      <h3 className="text-lg font-semibold mb-4">Etiket ve Özellikler</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="edit-badge">Etiket</Label>
+                          <select
+                            id="edit-badge"
+                            value={editProduct.badge}
+                            onChange={(e) => setEditProduct({...editProduct, badge: e.target.value})}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <option value="">Etiket yok</option>
+                            <option value="Yeni">Yeni</option>
+                            <option value="İndirim">İndirim</option>
+                            <option value="Popüler">Popüler</option>
+                          </select>
+                        </div>
+                        <div className="flex items-center space-x-2 pt-6">
+                          <input
+                            type="checkbox"
+                            id="edit-featured"
+                            checked={editProduct.featured}
+                            onChange={(e) => setEditProduct({...editProduct, featured: e.target.checked})}
+                            className="w-4 h-4"
+                          />
+                          <Label htmlFor="edit-featured">Öne Çıkarılmış Ürün</Label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-4 border-t">
+                    <Button variant="outline" onClick={() => setIsEditProductOpen(false)}>
+                      İptal
+                    </Button>
+                    <Button onClick={handleUpdateProduct} className="bg-blue-600 text-white">
+                      Güncelle
+                    </Button>
+                  </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Product View Dialog */}
+      <Dialog open={isViewProductOpen} onOpenChange={setIsViewProductOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">Ürün Detayları</DialogTitle>
+          </DialogHeader>
+          {viewingProduct && (
+            <div className="space-y-6 py-4">
+              {/* Ana Layout - Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                
+                {/* Sol Taraf - Galeri */}
+                <div className="space-y-4">
+                  {/* Ana Resim */}
+                  <div className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 border-2 border-gray-200">
+                    <img 
+                      src={viewingProduct.image || 'https://via.placeholder.com/400?text=No+Image'} 
+                      alt={viewingProduct.name}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        e.currentTarget.src = 'https://via.placeholder.com/400?text=Image+Error'
+                      }}
+                    />
+                    {viewingProduct.badge && (
+                      <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                        {viewingProduct.badge}
+                      </div>
+                    )}
+                    {viewingProduct.featured && (
+                      <div className="absolute top-3 right-3 bg-yellow-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                        ⭐ Öne Çıkan
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Galeri - Kaydırmalı Fotoğraflar */}
+                  {viewingProduct.images && viewingProduct.images.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-gray-700">Galeri</h4>
+                      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                        {viewingProduct.images.map((img: string, index: number) => (
+                          img && (
+                            <div key={index} className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-yellow-400 transition-colors cursor-pointer">
+                              <img 
+                                src={img} 
+                                alt={`${viewingProduct.name} ${index + 1}`}
+                                className="w-full h-full object-cover hover:scale-110 transition-transform duration-200"
+                                onError={(e) => {
+                                  e.currentTarget.src = 'https://via.placeholder.com/80?text=Error'
+                                }}
+                              />
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Sağ Taraf - Ürün Bilgileri */}
+                <div className="space-y-6">
+                  {/* Başlık ve Kategori */}
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{viewingProduct.name}</h1>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Badge className="bg-yellow-100 text-yellow-800 capitalize">
+                        {viewingProduct.category === 'rings' && '💍 Yüzük'}
+                        {viewingProduct.category === 'necklaces' && '📿 Kolye'}
+                        {viewingProduct.category === 'earrings' && '👂 Küpe'}
+                        {viewingProduct.category === 'bracelets' && '📿 Bilezik'}
+                      </Badge>
+                      <Badge className={viewingProduct.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                        {viewingProduct.isActive ? '✅ Aktif' : '❌ Pasif'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* Fiyat Bilgileri */}
+                  <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+                    <div className="flex items-end gap-3">
+                      <div>
+                        <p className="text-sm text-gray-600">Satış Fiyatı</p>
+                        <p className="text-3xl font-bold text-yellow-600">₺{viewingProduct.price?.toLocaleString('tr-TR')}</p>
+                      </div>
+                      {viewingProduct.originalPrice && viewingProduct.originalPrice > viewingProduct.price && (
+                        <div>
+                          <p className="text-sm text-gray-500">Orijinal Fiyat</p>
+                          <p className="text-lg text-gray-500 line-through">₺{viewingProduct.originalPrice?.toLocaleString('tr-TR')}</p>
+                        </div>
+                      )}
+                    </div>
+                    {viewingProduct.originalPrice && viewingProduct.originalPrice > viewingProduct.price && (
+                      <div className="mt-2">
+                        <p className="text-sm text-green-600 font-semibold">
+                          %{Math.round(((viewingProduct.originalPrice - viewingProduct.price) / viewingProduct.originalPrice) * 100)} İndirim
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Stok ve Durum */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
+                      <p className="text-sm text-blue-600 font-semibold">Stok Durumu</p>
+                      <p className="text-2xl font-bold text-blue-700">{viewingProduct.stock} adet</p>
+                      <p className="text-xs text-blue-600 mt-1">
+                        {viewingProduct.stock > 10 ? '✅ Stokta Yeterli' : 
+                         viewingProduct.stock > 0 ? '⚠️ Stok Azalıyor' : '❌ Stok Tükendi'}
+                      </p>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-xl border border-purple-200">
+                      <p className="text-sm text-purple-600 font-semibold">Değerlendirme</p>
+                      <p className="text-2xl font-bold text-purple-700">{viewingProduct.rating || 0}/5</p>
+                      <p className="text-xs text-purple-600 mt-1">{viewingProduct.reviews || 0} değerlendirme</p>
+                    </div>
+                  </div>
+
+                  {/* Açıklama */}
+                  {viewingProduct.description && (
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                      <h4 className="font-semibold text-gray-700 mb-2">📄 Açıklama</h4>
+                      <p className="text-gray-600 leading-relaxed">{viewingProduct.description}</p>
+                    </div>
+                  )}
+
+                  {/* Teknik Özellikler */}
+                  {viewingProduct.specifications && (
+                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                      <h4 className="font-semibold text-gray-700 mb-3">🔧 Teknik Özellikler</h4>
+                      <div className="grid grid-cols-1 gap-2">
+                        {viewingProduct.specifications.material && (
+                          <div className="flex justify-between py-1 border-b border-gray-200 last:border-b-0">
+                            <span className="text-gray-600">Malzeme:</span>
+                            <span className="font-medium text-gray-800">{viewingProduct.specifications.material}</span>
+                          </div>
+                        )}
+                        {viewingProduct.specifications.weight && (
+                          <div className="flex justify-between py-1 border-b border-gray-200 last:border-b-0">
+                            <span className="text-gray-600">Ağırlık:</span>
+                            <span className="font-medium text-gray-800">{viewingProduct.specifications.weight}</span>
+                          </div>
+                        )}
+                        {viewingProduct.specifications.dimensions && (
+                          <div className="flex justify-between py-1 border-b border-gray-200 last:border-b-0">
+                            <span className="text-gray-600">Boyutlar:</span>
+                            <span className="font-medium text-gray-800">{viewingProduct.specifications.dimensions}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Alt Bölüm - ID ve Tarih Bilgileri */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                <h4 className="font-semibold text-gray-700 mb-3">📊 Sistem Bilgileri</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Ürün ID:</span>
+                    <p className="font-mono text-gray-800 break-all">{viewingProduct._id}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Oluşturma Tarihi:</span>
+                    <p className="text-gray-800">{viewingProduct.createdAt ? new Date(viewingProduct.createdAt).toLocaleDateString('tr-TR') : 'Bilinmiyor'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-600">Son Güncelleme:</span>
+                    <p className="text-gray-800">{viewingProduct.updatedAt ? new Date(viewingProduct.updatedAt).toLocaleDateString('tr-TR') : 'Bilinmiyor'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dialog Alt Butonları */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <Button variant="outline" onClick={() => setIsViewProductOpen(false)}>
+                  Kapat
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setIsViewProductOpen(false)
+                    handleEditProduct(viewingProduct)
+                  }}
+                  className="bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Düzenle
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="container mx-auto px-4 py-8">
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
@@ -330,49 +1367,80 @@ export function AdminDashboard({ onNavigate, adminUser }: AdminDashboardProps) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((product) => (
-                    <TableRow key={product.id} className="hover:bg-gray-50">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <img 
-                            src={product.image} 
-                            alt={product.name}
-                            className="w-10 h-10 rounded-lg object-cover"
-                          />
-                          <span className="truncate max-w-48 font-medium">{product.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{product.category}</TableCell>
-                      <TableCell className="font-semibold">₺{product.price.toLocaleString('tr-TR')}</TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-sm font-medium ${
-                          product.stock === 0 ? 'bg-red-100 text-red-800' : 
-                          product.stock < 10 ? 'bg-yellow-100 text-yellow-800' : 
-                          'bg-green-100 text-green-800'
-                        }`}>
-                          {product.stock}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusBadge(product.status)}>
-                          {product.status === 'active' ? 'Aktif' : 'Pasif'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="sm" className="hover:bg-yellow-50 hover:text-yellow-600">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="hover:bg-blue-50 hover:text-blue-600">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        Yükleniyor...
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : products.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-8">
+                        Henüz ürün bulunmuyor
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    products.map((product) => (
+                      <TableRow key={product._id} className="hover:bg-gray-50">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <img 
+                              src={product.image} 
+                              alt={product.name}
+                              className="w-10 h-10 rounded-lg object-cover"
+                            />
+                            <span className="truncate max-w-48 font-medium">{product.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="capitalize">{product.category}</TableCell>
+                        <TableCell className="font-semibold">
+                          ₺{product.price ? product.price.toLocaleString('tr-TR') : '0'}
+                        </TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-sm font-medium ${
+                            product.stock === 0 ? 'bg-red-100 text-red-800' : 
+                            product.stock < 10 ? 'bg-yellow-100 text-yellow-800' : 
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {product.stock}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={product.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                            {product.isActive ? 'Aktif' : 'Pasif'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="hover:bg-yellow-50 hover:text-yellow-600"
+                              onClick={() => handleViewProduct(product)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="hover:bg-blue-50 hover:text-blue-600"
+                              onClick={() => handleEditProduct(product)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-red-600 hover:bg-red-50"
+                              onClick={() => handleDeleteProduct(product._id, product.name)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </Card>

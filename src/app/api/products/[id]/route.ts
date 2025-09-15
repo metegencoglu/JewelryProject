@@ -101,40 +101,49 @@ export async function PUT(
   }
 }
 
-// DELETE /api/products/[id] - Ürün sil (soft delete)
+// DELETE /api/products/[id] - Ürün sil (hard delete - kalıcı silme)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    console.log('DELETE request received for ID:', params.id)
     await connectDB()
     
     const { id } = params
+    console.log('Processing deletion for ID:', id, 'Type:', typeof id)
     
     // ID validation
     if (!mongoose.Types.ObjectId.isValid(id)) {
+      console.log('Invalid ObjectId:', id)
       return NextResponse.json(
         { success: false, error: 'Geçersiz ürün ID' },
         { status: 400 }
       )
     }
-    
-    const product = await Product.findOneAndUpdate(
-      { _id: id, isActive: true },
-      { isActive: false, updatedAt: new Date() },
-      { new: true }
+
+    console.log('Searching for product with ID:', id)
+    const product = await Product.findOneAndDelete(
+      { _id: id, isActive: true }
     )
+
+    console.log('Found and deleted product:', product ? 'YES' : 'NO')
     
     if (!product) {
+      // Ayrıca tüm ürünleri kontrol edelim
+      const allProducts = await Product.find({}, '_id name isActive')
+      console.log('All products in DB:', allProducts)
+      
       return NextResponse.json(
         { success: false, error: 'Ürün bulunamadı' },
         { status: 404 }
       )
     }
-    
+
+    console.log('Product permanently deleted:', product.name)
     return NextResponse.json({
       success: true,
-      message: 'Ürün başarıyla silindi'
+      message: 'Ürün kalıcı olarak silindi'
     })
     
   } catch (error) {

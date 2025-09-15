@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { signIn, getSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export function LoginForm() {
@@ -13,11 +15,43 @@ export function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const router = useRouter()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle login logic here
-    console.log('Login:', { email, password, rememberMe })
+    setLoading(true)
+    setError('')
+
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        setError(result.error)
+        console.error('Login error:', result.error)
+      } else if (result?.ok) {
+        // Session'u kontrol et ve admin kontrolü yap
+        const session = await getSession()
+        
+        if (session?.user?.role === 'admin') {
+          console.log('✅ Admin login successful:', session.user.email)
+          router.push('/admin')
+        } else {
+          console.log('✅ User login successful:', session?.user?.email)
+          router.push('/')
+        }
+      }
+    } catch (error: any) {
+      console.error('Login error:', error)
+      setError('Giriş sırasında bir hata oluştu')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -29,6 +63,12 @@ export function LoginForm() {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+              {error}
+            </div>
+          )}
+          
           <div className="space-y-4">
             <div>
               <Label htmlFor="email">E-posta Adresi</Label>
@@ -86,8 +126,12 @@ export function LoginForm() {
             </Link>
           </div>
 
-          <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700">
-            Giriş Yap
+          <Button 
+            type="submit" 
+            className="w-full bg-teal-600 hover:bg-teal-700"
+            disabled={loading}
+          >
+            {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
           </Button>
 
           <div className="text-center">

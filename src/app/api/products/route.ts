@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const sortOrder = searchParams.get('sortOrder') || 'desc'
     const featured = searchParams.get('featured')
     const minPrice = parseFloat(searchParams.get('minPrice') || '0')
-    const maxPrice = parseFloat(searchParams.get('maxPrice') || '999999')
+    const maxPrice = parseFloat(searchParams.get('maxPrice') || '999999999') // 999 milyon'a kadar
     
     // Query oluştur
     const query: any = { isActive: true }
@@ -48,10 +48,16 @@ export async function GET(request: NextRequest) {
         .lean(),
       Product.countDocuments(query)
     ])
-    
+
+    // ObjectId'leri string'e çevir
+    const formattedProducts = products.map((product: any) => ({
+      ...product,
+      _id: product._id.toString()
+    }))
+
     return NextResponse.json({
       success: true,
-      products,
+      products: formattedProducts,
       pagination: {
         currentPage: page,
         totalPages: Math.ceil(total / limit),
@@ -76,9 +82,12 @@ export async function POST(request: NextRequest) {
     await connectDB()
     
     const body = await request.json()
+    console.log('📝 POST /api/products - Gelen data:', body)
+    console.log('💰 Price değeri:', body.price, typeof body.price)
     
     // Validation
     if (!body.name || !body.price || !body.image || !body.category) {
+      console.log('❌ Validation failed - eksik alanlar')
       return NextResponse.json(
         { success: false, error: 'Gerekli alanlar eksik' },
         { status: 400 }
@@ -86,10 +95,14 @@ export async function POST(request: NextRequest) {
     }
     
     const product = await Product.create(body)
+    console.log('✅ Ürün MongoDB\'ye eklendi:', product._id, 'Price:', product.price)
     
     return NextResponse.json({
       success: true,
-      product
+      product: {
+        ...product.toObject(),
+        _id: product._id.toString()
+      }
     }, { status: 201 })
     
   } catch (error: any) {
