@@ -13,10 +13,17 @@ export default withAuth(
       userRole: token?.role
     })
 
+    // Admin login sayfasına erişime izin ver - redirect döngüsünü önle
+    if (pathname === '/admin/login') {
+      console.log('✅ Admin login sayfası - geçiliyor')
+      return NextResponse.next()
+    }
+    
     // Token yoksa admin login'e yönlendir
     if (!token) {
-      console.log('❌ Token yok -> admin login')
-      return NextResponse.redirect(new URL('/admin/login', req.url))
+      console.log('❌ Token yok -> admin login yönlendiriliyor')
+      const loginUrl = new URL('/admin/login', req.url)
+      return NextResponse.redirect(loginUrl)
     }
     
     // Admin rolü yoksa ana sayfaya yönlendir
@@ -31,7 +38,17 @@ export default withAuth(
   {
     callbacks: {
       // Middleware'in çalışıp çalışmayacağını belirler
-      authorized: () => true // Her zaman çalışsın, main fonksiyonda kontrol edelim
+      authorized: ({ token, req }) => {
+        const pathname = req.nextUrl.pathname
+        
+        // Admin login sayfası için herkes erişebilir
+        if (pathname === '/admin/login') {
+          return true
+        }
+        
+        // Diğer admin sayfaları için admin token gerekli
+        return !!token && token.role === 'admin'
+      }
     }
   }
 )
@@ -40,8 +57,6 @@ export default withAuth(
 export const config = {
   matcher: [
     // Admin panel tüm alt path'leri (login hariç)
-    '/admin/((?!login).)*',
-    // API route'ları da koruyabiliriz
-    '/api/admin/:path*'
+    '/admin/:path*'
   ]
 }
