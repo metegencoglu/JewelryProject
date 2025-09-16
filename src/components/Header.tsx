@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
 import { Search, ShoppingBag, User, Menu, Heart, Settings, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import Link from 'next/link'
+import { useSession, signOut } from 'next-auth/react'
+import { logout as clientLogout } from '@/lib/authClient'
 import type { Page, Category } from '../types'
 import { useCart } from '@/contexts/CartContext'
 
@@ -16,6 +18,24 @@ interface HeaderProps {
 }
 
 export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: HeaderProps) {
+  const { data: session, status } = useSession()
+  const [showWelcome, setShowWelcome] = useState(false)
+
+  // Show welcome bubble briefly when user becomes authenticated
+  useState(() => {
+    // noop to keep top-level hook order
+  })
+
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null
+    if (status === 'authenticated') {
+      setShowWelcome(true)
+      t = setTimeout(() => setShowWelcome(false), 3000)
+    }
+    return () => {
+      if (t) clearTimeout(t)
+    }
+  }, [status])
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [hoveredNav, setHoveredNav] = useState<string | null>(null)
   const { state, toggleCart } = useCart()
@@ -139,7 +159,7 @@ export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: He
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-4">
             {/* Search */}
             <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
               <Button
@@ -200,17 +220,41 @@ export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: He
             )}
 
             {/* User */}
-            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-              <Link href="/auth/login">
-                <Button 
-                  variant="ghost" 
+            {status !== 'authenticated' && (
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
+                <Link href="/auth/login">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="hover:bg-gray-50 hover:text-gray-700 transition-colors"
+                  >
+                    <User className="h-5 w-5" />
+                  </Button>
+                </Link>
+              </motion.div>
+            )}
+
+            {/* Logout button - only show when authenticated */}
+            {status === 'authenticated' && (
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button
+                  variant="ghost"
                   size="sm"
-                  className="hover:bg-gray-50 hover:text-gray-700 transition-colors"
+                  onClick={async () => {
+                    // Revoke server-side tokens and clear cookies, then sign out NextAuth and redirect
+                    try {
+                      await clientLogout(() => signOut({ callbackUrl: '/auth/login' }))
+                    } catch (e) {
+                      // fallback: call signOut alone
+                      await signOut({ callbackUrl: '/auth/login' })
+                    }
+                  }}
+                  className="hidden sm:flex text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors px-3 py-1 rounded-md"
                 >
-                  <User className="h-5 w-5" />
+                  Log Out
                 </Button>
-              </Link>
-            </motion.div>
+              </motion.div>
+            )}
 
             {/* Cart */}
             <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
@@ -291,6 +335,25 @@ export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: He
               </SheetContent>
             </Sheet>
           </div>
+        </div>
+        {/* Welcome bubble (top-right) */}
+        <div className="pointer-events-none">
+          <AnimatePresence>
+            {showWelcome && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.25 }}
+                className="fixed right-6 top-4 z-50 pointer-events-auto"
+              >
+                <div className="bg-yellow-50 border border-yellow-200 text-yellow-900 px-4 py-2 rounded-full shadow-sm flex items-center space-x-3">
+                  <span className="text-sm">Hoşgeldiniz,</span>
+                  <span className="text-sm font-semibold">{session?.user?.name || session?.user?.email}</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Animated Search Bar */}

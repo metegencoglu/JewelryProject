@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { signIn, getSession } from 'next-auth/react'
+import { getSession, signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -25,26 +25,33 @@ export function LoginForm() {
     setError('')
 
     try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      })
-
+      // Use NextAuth signIn so existing session callbacks run
+      const result = await signIn('credentials', { email, password, redirect: false })
       if (result?.error) {
         setError(result.error)
-        console.error('Login error:', result.error)
       } else if (result?.ok) {
-        // Session'u kontrol et ve admin kontrolü yap
-        const session = await getSession()
-        
-        if (session?.user?.role === 'admin') {
-          console.log('✅ Admin login successful:', session.user.email)
-          router.push('/admin')
-        } else {
-          console.log('✅ User login successful:', session?.user?.email)
-          router.push('/')
+        // Wait until NextAuth session is available to avoid calling refresh before cookie is set
+        let session = await getSession()
+        const start = Date.now()
+        while (!session && Date.now() - start < 3000) {
+          // small backoff
+          await new Promise((res) => setTimeout(res, 150))
+          session = await getSession()
         }
+
+        // Ask server to issue refresh token cookie and short-lived access token
+        // Ensure cookies are sent by including credentials
+  const issue = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' })
+        const issued = await issue.json().catch(() => null)
+        if (issue.ok && issued?.accessToken) {
+          localStorage.setItem('accessToken', issued.accessToken)
+        }
+
+        // Now session should be available — use getSession to read role
+        const finalSession = await getSession()
+        const role = finalSession?.user?.role
+        if (role === 'admin') router.push('/admin')
+        else router.push('/')
       }
     } catch (error: any) {
       console.error('Login error:', error)

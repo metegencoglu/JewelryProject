@@ -31,11 +31,38 @@ async function connectDB() {
       bufferCommands: false,
     }
 
-    cached!.promise = mongoose.connect(MONGODB_URI, opts)
+    // Try connecting normally first
+    cached!.promise = mongoose.connect(MONGODB_URI, opts).catch(async (err) => {
+      // If we detect an SSL/TLS error, try a debug fallback with relaxed TLS settings
+      console.error('Initial Mongo connect failed:', err)
+      const msg = (err && (err.message || '')).toString().toLowerCase()
+      if (msg.includes('ssl') || msg.includes('tls') || (err as any)?.code === 'ERR_SSL_TLSV1_ALERT_INTERNAL_ERROR') {
+        console.warn('Mongo connect failed due to SSL/TLS. Attempting debug retry with relaxed TLS options (tlsAllowInvalidCertificates=true).')
+        try {
+          const fallbackOpts = { ...opts, tls: true, tlsAllowInvalidCertificates: true }
+          return await mongoose.connect(MONGODB_URI, fallbackOpts)
+        } catch (retryErr) {
+          console.error('Fallback mongo connect also failed:', retryErr)
+          throw retryErr
+        }
+      }
+      throw err
+    })
   }
 
   try {
     cached!.conn = await cached!.promise
+    // Debug: print connected DB name and readyState to help verify which DB instance the server is using
+    try {
+      // eslint-disable-next-line no-console
+      console.debug('MongoDB connected:', {
+        name: mongoose.connection.name,
+        host: (mongoose.connection as any).host || null,
+        readyState: mongoose.connection.readyState,
+      })
+    } catch (e) {
+      // ignore logging errors
+    }
   } catch (e) {
     cached!.promise = null
     throw e

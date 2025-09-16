@@ -55,7 +55,8 @@ const UserSchema = new mongoose.Schema({
 })
 
 // Index'ler
-UserSchema.index({ email: 1 })
+// `email` alanı zaten `unique: true` olarak şemada tanımlandığı için tekrar index eklemeye gerek yok
+// Duplicate index uyarısını kaldırmak için email index satırını kaldırdık
 UserSchema.index({ role: 1 })
 
 export default mongoose.models.User || mongoose.model('User', UserSchema)
