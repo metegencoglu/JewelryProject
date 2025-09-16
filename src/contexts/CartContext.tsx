@@ -1,7 +1,6 @@
 'use client'
 
 import React, { createContext, useContext, useReducer, useEffect } from 'react'
-import { useToastContext } from '@/contexts/ToastContext'
 
 export interface CartItem {
   id: number
@@ -139,7 +138,6 @@ interface CartContextType {
   clearCart: () => void
   toggleCart: () => void
   setCartOpen: (isOpen: boolean) => void
-  showAddToCartSuccess: (itemName: string) => void
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -153,7 +151,6 @@ const initialState: CartState = {
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(cartReducer, initialState)
-  const { showSuccess } = useToastContext()
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -201,13 +198,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_CART_OPEN', payload: isOpen })
   }
 
-  const showAddToCartSuccess = (itemName: string) => {
-    showSuccess(
-      'Ürün sepete eklendi!',
-      `"${itemName}" başarıyla sepetinize eklendi.`
-    )
-  }
-
   const contextValue: CartContextType = {
     state,
     addItem,
@@ -216,7 +206,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     clearCart,
     toggleCart,
     setCartOpen,
-    showAddToCartSuccess,
   }
 
   return (

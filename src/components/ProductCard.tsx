@@ -43,7 +43,7 @@ export function ProductCard({
   const [is360View, setIs360View] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedImage, setSelectedImage] = useState(0)
-  const { addItem, showAddToCartSuccess } = useCart()
+  const { addItem } = useCart()
 
   // Build images array from main image + optional additional images
   const images = [image, ...(imagesProp || [])].filter(Boolean)
@@ -82,7 +82,6 @@ export function ProductCard({
       image,
       category
     })
-    showAddToCartSuccess(name)
   }
 
   if (viewMode === 'list') {
