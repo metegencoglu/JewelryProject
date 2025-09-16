@@ -26,10 +26,11 @@ export default withAuth(
       return NextResponse.redirect(loginUrl)
     }
     
-    // Admin rolü yoksa ana sayfaya yönlendir
+    // Admin rolü yoksa admin login sayfasına yönlendir
     if (token.role !== 'admin') {
-      console.log('❌ Admin değil -> ana sayfa')
-      return NextResponse.redirect(new URL('/', req.url))
+      console.log('❌ Admin değil -> admin login yönlendiriliyor')
+      const loginUrl = new URL('/admin/login', req.url)
+      return NextResponse.redirect(loginUrl)
     }
     
     console.log('✅ Admin erişim OK')
@@ -38,17 +39,8 @@ export default withAuth(
   {
     callbacks: {
       // Middleware'in çalışıp çalışmayacağını belirler
-      authorized: ({ token, req }) => {
-        const pathname = req.nextUrl.pathname
-        
-        // Admin login sayfası için herkes erişebilir
-        if (pathname === '/admin/login') {
-          return true
-        }
-        
-        // Diğer admin sayfaları için admin token gerekli
-        return !!token && token.role === 'admin'
-      }
+      // Return true so the middleware function always runs and can perform its own redirects.
+      authorized: () => true
     }
   }
 )

@@ -200,26 +200,6 @@ export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: He
               </Button>
             </motion.div>
 
-            {/* Admin Panel (Only visible for site owner) */}
-            {isAdmin && (
-              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-                <Link href="/admin">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="hidden sm:flex text-orange-600 hover:text-orange-700 hover:bg-orange-50 transition-colors"
-                  >
-                    <motion.div
-                      animate={{ rotate: [0, 180, 360] }}
-                      transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-                    >
-                      <Settings className="h-5 w-5" />
-                    </motion.div>
-                  </Button>
-                </Link>
-              </motion.div>
-            )}
-
             {/* User */}
             {status !== 'authenticated' && (
               <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
