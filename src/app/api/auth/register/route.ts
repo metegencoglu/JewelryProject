@@ -8,80 +8,85 @@ import jwt from 'jsonwebtoken'
 export async function POST(request: NextRequest) {
   try {
     await connectDB()
-    
-    const { email, password, name } = await request.json()
-    
-    // Validation
-    if (!email || !password || !name) {
+
+    const body = await request.json()
+
+    // Frontend `RegisterForm` sends firstName and lastName
+    const email = (body.email || '').toString().trim().toLowerCase()
+    const password = (body.password || '').toString()
+    const firstName = (body.firstName || '').toString().trim()
+    const lastName = (body.lastName || '').toString().trim()
+
+    // Basic validation
+    if (!email || !password || !firstName || !lastName) {
       return NextResponse.json(
-        { success: false, error: 'Tüm alanları doldurun' },
+        { success: false, error: 'Lütfen tüm zorunlu alanları doldurun' },
         { status: 400 }
       )
     }
-    
+
+    // Email regex (simple)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ success: false, error: 'Geçersiz e-posta adresi' }, { status: 400 })
+    }
+
     if (password.length < 6) {
-      return NextResponse.json(
-        { success: false, error: 'Şifre en az 6 karakter olmalıdır' },
-        { status: 400 }
-      )
+      return NextResponse.json({ success: false, error: 'Şifre en az 6 karakter olmalıdır' }, { status: 400 })
     }
-    
-    // Email kontrolü
+
+    // Check existing user
     const existingUser = await User.findOne({ email })
     if (existingUser) {
-      return NextResponse.json(
-        { success: false, error: 'Bu email zaten kayıtlı' },
-        { status: 409 }
-      )
+      return NextResponse.json({ success: false, error: 'Bu e-posta adresi zaten kullanılıyor' }, { status: 409 })
     }
-    
-    // Şifreyi hashle
+
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 12)
-    
-    // Kullanıcı oluştur
+
+    // Create user
     const user = await User.create({
       email,
       password: hashedPassword,
-      name
+      name: `${firstName} ${lastName}`.trim(),
     })
-    
-    // JWT token oluştur
+
+    // Create JWT (used by some parts of the app) - keep same secret
     const token = jwt.sign(
       { userId: user._id, email: user.email, role: user.role },
-      process.env.NEXTAUTH_SECRET!,
+      process.env.NEXTAUTH_SECRET || '',
       { expiresIn: '7d' }
     )
-    
-    // Şifreyi response'dan çıkar
+
+    // Prepare sanitized user response
     const userResponse = {
       _id: user._id,
       email: user.email,
       name: user.name,
       role: user.role,
-      createdAt: user.createdAt
+      createdAt: user.createdAt,
     }
-    
-    const response = NextResponse.json({
-      success: true,
-      message: 'Kayıt başarılı',
-      user: userResponse,
-      token
-    }, { status: 201 })
-    
-    // HTTP-only cookie set et
+
+    const response = NextResponse.json(
+      { success: true, message: 'Kayıt başarılı', user: userResponse },
+      { status: 201 }
+    )
+
+    // Set secure, httpOnly cookie for session convenience
+    // Note: NextAuth also manages its own cookies; this is an additional token for API consumers.
     response.cookies.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 // 7 gün
+      maxAge: 7 * 24 * 60 * 60,
+      path: '/',
     })
-    
+
     return response
-    
   } catch (error) {
     console.error('Register error:', error)
     return NextResponse.json(
-      { success: false, error: 'Kayıt sırasında hata oluştu' },
+      { success: false, error: 'Kayıt sırasında sunucu hatası oluştu' },
       { status: 500 }
     )
   }

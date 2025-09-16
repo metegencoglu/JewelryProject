@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false)
@@ -21,6 +22,10 @@ export function RegisterForm() {
     newsletter: false
   })
 
+  const router = useRouter()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
   const handleInputChange = (field: keyof typeof formData, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }
@@ -31,7 +36,39 @@ export function RegisterForm() {
       alert('Şifreler eşleşmiyor')
       return
     }
-    console.log('Register:', formData)
+
+    ;(async () => {
+      setLoading(true)
+      setError('')
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            firstName: formData.firstName,
+            lastName: formData.lastName,
+            email: formData.email,
+            password: formData.password,
+            newsletter: formData.newsletter,
+          }),
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          setError(data?.error || 'Kayıt başarısız oldu')
+        } else {
+          // Başarılı kayıt — yönlendir /auth/login
+          router.push('/auth/login')
+        }
+      } catch (err: any) {
+        console.error('Register request failed:', err)
+        setError('Sunucuya bağlanırken hata oluştu')
+      } finally {
+        setLoading(false)
+      }
+    })()
   }
 
   return (
@@ -43,6 +80,11 @@ export function RegisterForm() {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
+              {error}
+            </div>
+          )}
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -175,9 +217,9 @@ export function RegisterForm() {
           <Button 
             type="submit" 
             className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
-            disabled={!formData.acceptTerms}
+            disabled={!formData.acceptTerms || loading}
           >
-            Hesap Oluştur
+            {loading ? 'Oluşturuluyor...' : 'Hesap Oluştur'}
           </Button>
 
           <div className="text-center">
