@@ -269,7 +269,7 @@ export function CategoryPage({ category, slug }: CategoryPageProps) {
           {filteredProducts.map((product) => (
             <ProductCard 
               key={product._id} 
-              id={parseInt(product._id)}
+              id={product._id}
               name={product.name}
               price={product.price}
               image={product.image}

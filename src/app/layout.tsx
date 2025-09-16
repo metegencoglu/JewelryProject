@@ -5,6 +5,7 @@ import { Header } from "../components/Header";
 import { AuthProvider } from "../components/AuthProvider";
 import { CartProvider } from "../contexts/CartContext";
 import { CartSidebar } from "../components/CartSidebar";
+import { ToastContainer } from "@/components/ToastContainer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,6 +38,7 @@ export default function RootLayout({
                 {children}
               </main>
               <CartSidebar />
+              <ToastContainer />
             </div>
           </CartProvider>
         </AuthProvider>

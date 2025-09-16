@@ -1,4 +1,4 @@
-export type Page = 'home' | 'admin' | 'login' | 'product' | 'category'
+export type Page = 'home' | 'admin' | 'login' | 'product' | 'category' | 'profile'
 export type Category = 
   // Eski İngilizce kategoriler (backward compatibility)
   | 'rings' | 'necklaces' | 'earrings' | 'bracelets' | 'collections'

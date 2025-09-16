@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { Search, ShoppingBag, User, Menu, Heart, Settings, Sparkles } from 'lucide-react'
+import { Search, ShoppingBag, User, Menu, Heart, Settings, Sparkles, ChevronDown, Package, CreditCard, HelpCircle, LogOut, Gift } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import Link from 'next/link'
@@ -38,6 +38,7 @@ export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: He
   }, [status])
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [hoveredNav, setHoveredNav] = useState<string | null>(null)
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false)
   const { state, toggleCart } = useCart()
 
   const navigation = [
@@ -234,25 +235,188 @@ export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: He
               </motion.div>
             )}
 
-            {/* Logout button - only show when authenticated */}
+            {/* User Profile Dropdown */}
             {status === 'authenticated' && (
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={async () => {
-                    // Revoke server-side tokens and clear cookies, then sign out NextAuth and redirect
-                    try {
-                      await clientLogout(() => signOut({ callbackUrl: '/auth/login' }))
-                    } catch (e) {
-                      // fallback: call signOut alone
-                      await signOut({ callbackUrl: '/auth/login' })
-                    }
-                  }}
-                  className="hidden sm:flex text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors px-3 py-1 rounded-md"
+              <motion.div 
+                className="relative"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2 }}
+              >
+                <motion.div
+                  onHoverStart={() => setIsProfileDropdownOpen(true)}
+                  onHoverEnd={() => setIsProfileDropdownOpen(false)}
+                  className="relative"
                 >
-                  Log Out
-                </Button>
+                  {/* Profile Button */}
+                  <motion.button
+                    className="flex items-center space-x-2 px-2.5 py-1.5 rounded-full bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 hover:from-yellow-100 hover:to-amber-100 transition-all duration-300 hover:shadow-md"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <div className="relative">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-r from-yellow-600 to-amber-600 flex items-center justify-center">
+                        <User className="h-3.5 w-3.5 text-white" />
+                      </div>
+                      <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></div>
+                    </div>
+                    <div className="hidden sm:block text-left">
+                      <p className="text-xs font-medium text-gray-900 truncate max-w-20">
+                        {session?.user?.name || 'Kullanıcı'}
+                      </p>
+                      <p className="text-[10px] text-gray-500">Hoşgeldiniz</p>
+                    </div>
+                    <ChevronDown className={`h-3.5 w-3.5 text-gray-600 transition-transform duration-200 ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
+                  </motion.button>
+
+                  {/* Dropdown Menu */}
+                  <AnimatePresence>
+                    {isProfileDropdownOpen && (
+                      <motion.div
+                        className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-100 overflow-hidden z-50"
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        {/* User Info Header */}
+                        <div className="px-3 py-2.5 bg-gradient-to-r from-yellow-50 to-amber-50 border-b border-yellow-100">
+                          <div className="flex items-center space-x-2.5">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-r from-yellow-600 to-amber-600 flex items-center justify-center">
+                              <User className="h-4 w-4 text-white" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-gray-900 truncate">{session?.user?.name || 'Kullanıcı'}</p>
+                              <p className="text-xs text-gray-600 truncate">{session?.user?.email}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Menu Items */}
+                        <div className="py-1">
+                          <motion.button
+                            className="w-full px-3 py-2 flex items-center space-x-2.5 hover:bg-gray-50 transition-colors group"
+                            whileHover={{ x: 3 }}
+                          >
+                            <Package className="h-3.5 w-3.5 text-gray-600 group-hover:text-yellow-600" />
+                            <span className="text-xs text-gray-700 group-hover:text-gray-900">Tüm Siparişlerim</span>
+                          </motion.button>
+
+                          <motion.button
+                            className="w-full px-3 py-2 flex items-center space-x-2.5 hover:bg-gray-50 transition-colors group"
+                            whileHover={{ x: 3 }}
+                          >
+                            <Heart className="h-3.5 w-3.5 text-gray-600 group-hover:text-red-500" />
+                            <span className="text-xs text-gray-700 group-hover:text-gray-900">Değerlendirmelerim</span>
+                          </motion.button>
+
+                          <motion.button
+                            className="w-full px-3 py-2 flex items-center space-x-2.5 hover:bg-gray-50 transition-colors group"
+                            whileHover={{ x: 3 }}
+                          >
+                            <CreditCard className="h-3.5 w-3.5 text-gray-600 group-hover:text-blue-600" />
+                            <span className="text-xs text-gray-700 group-hover:text-gray-900">Satıcı Mesajlarım</span>
+                          </motion.button>
+
+                          <motion.button
+                            className="w-full px-3 py-2 flex items-center justify-between hover:bg-gray-50 transition-colors group"
+                            whileHover={{ x: 3 }}
+                          >
+                            <div className="flex items-center space-x-2.5">
+                              <Gift className="h-3.5 w-3.5 text-gray-600 group-hover:text-purple-600" />
+                              <span className="text-xs text-gray-700 group-hover:text-gray-900">Krediler</span>
+                            </div>
+                            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">90 Fark Fırsatı</span>
+                          </motion.button>
+
+                          <motion.button
+                            className="w-full px-3 py-2 flex items-center justify-between hover:bg-gray-50 transition-colors group"
+                            whileHover={{ x: 3 }}
+                          >
+                            <div className="flex items-center space-x-2.5">
+                              <Sparkles className="h-3.5 w-3.5 text-gray-600 group-hover:text-yellow-600" />
+                              <span className="text-xs text-gray-700 group-hover:text-gray-900">Şanslı Çekiliş</span>
+                            </div>
+                            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">YENİ</span>
+                          </motion.button>
+
+                          <motion.button
+                            className="w-full px-3 py-2 flex items-center space-x-2.5 hover:bg-gray-50 transition-colors group"
+                            whileHover={{ x: 3 }}
+                          >
+                            <Gift className="h-3.5 w-3.5 text-gray-600 group-hover:text-orange-600" />
+                            <span className="text-xs text-gray-700 group-hover:text-gray-900">İndirim Kuponlarım</span>
+                          </motion.button>
+
+                          <motion.button
+                            className="w-full px-3 py-2 flex items-center justify-between hover:bg-gray-50 transition-colors group"
+                            whileHover={{ x: 3 }}
+                          >
+                            <div className="flex items-center space-x-2.5">
+                              <Heart className="h-3.5 w-3.5 text-gray-600 group-hover:text-red-500" />
+                              <span className="text-xs text-gray-700 group-hover:text-gray-900">Trendyol Plus</span>
+                            </div>
+                            <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">YENİ</span>
+                          </motion.button>
+
+                          <motion.button
+                            className="w-full px-3 py-2 flex items-center space-x-2.5 hover:bg-gray-50 transition-colors group"
+                            whileHover={{ x: 3 }}
+                          >
+                            <Sparkles className="h-3.5 w-3.5 text-gray-600 group-hover:text-purple-600" />
+                            <span className="text-xs text-gray-700 group-hover:text-gray-900">Trendyol Elite</span>
+                          </motion.button>
+
+                          <motion.button
+                            className="w-full px-3 py-2 flex items-center space-x-2.5 hover:bg-gray-50 transition-colors group"
+                            whileHover={{ x: 3 }}
+                          >
+                            <HelpCircle className="h-3.5 w-3.5 text-gray-600 group-hover:text-blue-600" />
+                            <span className="text-xs text-gray-700 group-hover:text-gray-900">Trendyol Asistan</span>
+                          </motion.button>
+
+                          <motion.button
+                            className="w-full px-3 py-2 flex items-center space-x-2.5 hover:bg-gray-50 transition-colors group"
+                            whileHover={{ x: 3 }}
+                          >
+                            <Package className="h-3.5 w-3.5 text-gray-600 group-hover:text-green-600" />
+                            <span className="text-xs text-gray-700 group-hover:text-gray-900">Çıkış Yap</span>
+                          </motion.button>
+
+                          <Link href="/profile" className="block">
+                            <motion.button
+                              onClick={() => setIsProfileDropdownOpen(false)}
+                              className="w-full px-3 py-2 flex items-center space-x-2.5 hover:bg-gray-50 transition-colors group"
+                              whileHover={{ x: 3 }}
+                            >
+                              <User className="h-3.5 w-3.5 text-gray-600 group-hover:text-blue-600" />
+                              <span className="text-xs text-gray-700 group-hover:text-gray-900">Kullanıcı Bilgilerim</span>
+                            </motion.button>
+                          </Link>
+
+                          {/* Divider */}
+                          <div className="border-t border-gray-100 my-1"></div>
+
+                          {/* Logout Button */}
+                          <motion.button
+                            onClick={async () => {
+                              try {
+                                await clientLogout(() => signOut({ callbackUrl: '/auth/login' }))
+                              } catch (e) {
+                                await signOut({ callbackUrl: '/auth/login' })
+                              }
+                            }}
+                            className="w-full px-3 py-2 flex items-center space-x-2.5 hover:bg-red-50 transition-colors group text-left"
+                            whileHover={{ x: 3 }}
+                          >
+                            <LogOut className="h-3.5 w-3.5 text-gray-600 group-hover:text-red-600" />
+                            <span className="text-xs text-gray-700 group-hover:text-red-600">Çıkış Yap</span>
+                          </motion.button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
               </motion.div>
             )}
 

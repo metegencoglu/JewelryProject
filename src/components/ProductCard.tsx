@@ -8,7 +8,7 @@ import { ImageWithFallback } from '@/components/figma/ImageWithFallback'
 import { useCart } from '@/contexts/CartContext'
 
 interface ProductCardProps {
-  id: number
+  id: number | string
   name: string
   price: number
   originalPrice?: number
@@ -19,7 +19,7 @@ interface ProductCardProps {
   rating?: number
   reviews?: number
   isFavorite?: boolean
-  onNavigate?: (page: string, category?: any, productId?: number) => void
+  onNavigate?: (page: string, category?: any, productId?: number | string) => void
   viewMode?: 'grid' | 'list'
 }
 
@@ -75,6 +75,13 @@ export function ProductCard({
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation()
+    console.log('🔍 ProductCard - Adding to cart:', {
+      id,
+      name,
+      price,
+      image,
+      category
+    })
     addItem({
       id,
       name,
