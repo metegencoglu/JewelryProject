@@ -5,6 +5,7 @@ import { Heart, ShoppingBag, Eye, Star, RotateCw, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ImageWithFallback } from '@/components/figma/ImageWithFallback'
+import { useCart } from '@/contexts/CartContext'
 
 interface ProductCardProps {
   id: number
@@ -42,6 +43,7 @@ export function ProductCard({
   const [is360View, setIs360View] = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedImage, setSelectedImage] = useState(0)
+  const { addItem, showAddToCartSuccess } = useCart()
 
   // Build images array from main image + optional additional images
   const images = [image, ...(imagesProp || [])].filter(Boolean)
@@ -69,6 +71,18 @@ export function ProductCard({
 
   const handleNavigate = () => {
     onNavigate?.('product', undefined, id)
+  }
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    addItem({
+      id,
+      name,
+      price,
+      image,
+      category
+    })
+    showAddToCartSuccess(name)
   }
 
   if (viewMode === 'list') {
@@ -139,7 +153,7 @@ export function ProductCard({
                 </Button>
                 <Button
                   size="sm"
-                  onClick={handleNavigate}
+                  onClick={handleAddToCart}
                   className="bg-yellow-600 hover:bg-yellow-700 text-white transition-all duration-300 hover:scale-105"
                 >
                   <ShoppingBag className="h-4 w-4 mr-2" />
@@ -236,7 +250,7 @@ export function ProductCard({
         {isHovered && (
           <div className="absolute bottom-3 left-3 right-3 animate-fade-in-up">
             <Button 
-              onClick={(e) => e.stopPropagation()}
+              onClick={handleAddToCart}
               className="w-full bg-yellow-600 hover:bg-yellow-700 text-white shadow-lg backdrop-blur-sm transition-all duration-300 group hover:scale-105"
             >
               <ShoppingBag className="h-4 w-4 mr-2 group-hover:animate-bounce" />

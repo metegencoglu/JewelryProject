@@ -7,16 +7,31 @@ import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import Link from 'next/link'
 import type { Page, Category } from '../types'
+import { useCart } from '@/contexts/CartContext'
+import { UserProfileDropdown } from './UserProfileDropdown'
 
 interface HeaderProps {
   onNavigate?: (page: Page, category?: Category) => void
   currentPage?: Page
   isAdmin?: boolean
+  user?: {
+    name: string
+    email: string
+    avatar?: string
+    membershipLevel?: string
+    isLoggedIn: boolean
+  }
 }
 
-export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: HeaderProps) {
+export function Header({ onNavigate, currentPage = 'home', isAdmin = false, user }: HeaderProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [hoveredNav, setHoveredNav] = useState<string | null>(null)
+  const { state, toggleCart } = useCart()
+
+  const handleLogout = () => {
+    // Logout logic burada implement edilecek
+    console.log('User logged out')
+  }
 
   const navigation = [
     { name: 'Ana Sayfa', href: '/', action: () => onNavigate?.('home') },
@@ -199,15 +214,19 @@ export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: He
 
             {/* User */}
             <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }}>
-              <Link href="/auth/login">
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="hover:bg-gray-50 hover:text-gray-700 transition-colors"
-                >
-                  <User className="h-5 w-5" />
-                </Button>
-              </Link>
+              {user?.isLoggedIn ? (
+                <UserProfileDropdown user={user} onLogout={handleLogout} />
+              ) : (
+                <Link href="/auth/login">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="hover:bg-gray-50 hover:text-gray-700 transition-colors"
+                  >
+                    <User className="h-5 w-5" />
+                  </Button>
+                </Link>
+              )}
             </motion.div>
 
             {/* Cart */}
@@ -215,6 +234,7 @@ export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: He
               <Button 
                 variant="ghost" 
                 size="sm" 
+                onClick={toggleCart}
                 className="relative hover:bg-yellow-50 hover:text-yellow-600 transition-colors"
               >
                 <motion.div
@@ -223,19 +243,21 @@ export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: He
                 >
                   <ShoppingBag className="h-5 w-5" />
                 </motion.div>
-                <motion.span 
-                  className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-gradient-to-r from-yellow-600 to-amber-600 text-xs text-white flex items-center justify-center"
-                  animate={{
-                    scale: [1, 1.3, 1],
-                  }}
-                  transition={{
-                    duration: 1.5,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                  }}
-                >
-                  3
-                </motion.span>
+                {state.totalItems > 0 && (
+                  <motion.span 
+                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-gradient-to-r from-yellow-600 to-amber-600 text-xs text-white flex items-center justify-center"
+                    animate={{
+                      scale: [1, 1.3, 1],
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  >
+                    {state.totalItems}
+                  </motion.span>
+                )}
               </Button>
             </motion.div>
 
@@ -255,6 +277,29 @@ export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: He
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, staggerChildren: 0.1 }}
                 >
+                  {/* User Info in Mobile */}
+                  {user?.isLoggedIn && (
+                    <motion.div
+                      className="px-4 py-3 bg-yellow-50 rounded-lg mb-4"
+                      initial={{ opacity: 0, x: 30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                          <User className="h-5 w-5 text-yellow-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {user.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {user.membershipLevel}
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+
                   {navigation.map((item, index) => (
                     <motion.button
                       key={item.name}
@@ -268,6 +313,7 @@ export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: He
                       {item.name}
                     </motion.button>
                   ))}
+                  
                   {isAdmin && (
                     <Link href="/admin">
                       <motion.button
@@ -281,6 +327,24 @@ export function Header({ onNavigate, currentPage = 'home', isAdmin = false }: He
                         Admin Panel
                       </motion.button>
                     </Link>
+                  )}
+
+                  {/* Mobile User Actions */}
+                  {user?.isLoggedIn && (
+                    <motion.div
+                      className="pt-4 mt-4 border-t border-gray-200"
+                      initial={{ opacity: 0, x: 30 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: (navigation.length + 1) * 0.1 }}
+                    >
+                      <motion.button
+                        onClick={handleLogout}
+                        className="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        whileHover={{ x: 4 }}
+                      >
+                        Çıkış Yap
+                      </motion.button>
+                    </motion.div>
                   )}
                 </motion.nav>
               </SheetContent>

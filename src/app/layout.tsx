@@ -3,6 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Header } from "../components/Header";
 import { AuthProvider } from "../components/AuthProvider";
+import { CartProvider } from "../contexts/CartContext";
+import { CartSidebar } from "../components/CartSidebar";
+import { ToastProvider } from "../contexts/ToastContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,16 +27,30 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Örnek kullanıcı verisi - gerçek uygulamada session'dan gelecek
+  const sampleUser = {
+    name: "Ahmet Yılmaz",
+    email: "ahmet.yilmaz@example.com",
+    avatar: "", // Boş bırakınca varsayılan ikon gösterilir
+    membershipLevel: "Premium Üye",
+    isLoggedIn: true // Bu değeri false yaparsanız login olmamış görünüm gelir
+  }
+
   return (
     <html lang="tr">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
-          <div className="min-h-screen bg-white">
-            <Header isAdmin={true} />
-            <main>
-              {children}
-            </main>
-          </div>
+          <ToastProvider>
+            <CartProvider>
+              <div className="min-h-screen bg-white">
+                <Header isAdmin={true} user={sampleUser} />
+                <main>
+                  {children}
+                </main>
+                <CartSidebar />
+              </div>
+            </CartProvider>
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>
