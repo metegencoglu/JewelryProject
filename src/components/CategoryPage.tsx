@@ -59,41 +59,68 @@ export function CategoryPage({ category, slug }: CategoryPageProps) {
     const fetchProducts = async () => {
       try {
         setLoading(true)
-        
+
         console.log('🔍 CategoryPage Debug:', {
           slug,
           category,
           isSlugBased,
           dbCategory
         })
-        
+
         // API'den ürünleri getir - kategori parametresi ile filtrele
-        const response = await fetch(`/api/products?category=${dbCategory}`)
-        
+        const response = await fetch(`/api/products?category=${encodeURIComponent(dbCategory)}`)
+
         // Ayrıca tüm ürünleri de kontrol et (debug için)
-        const allProductsResponse = await fetch('/api/products')
-        const allProductsData = await allProductsResponse.json()
-        console.log('🗂️ All Products Categories:', 
-          allProductsData.products?.map((p: any) => ({
-            name: p.name,
-            category: p.category
-          })) || []
-        )
-        
-        if (!response.ok) {
-          throw new Error('Ürünler yüklenirken hata oluştu')
+        let allProductsData: any = { products: [] }
+        try {
+          const allProductsResponse = await fetch('/api/products')
+          if (allProductsResponse.ok) {
+            allProductsData = await allProductsResponse.json()
+            console.log('🗂️ All Products Categories:', 
+              allProductsData.products?.map((p: any) => ({
+                name: p.name,
+                category: p.category
+              })) || []
+            )
+          } else {
+            const text = await allProductsResponse.text()
+            console.warn('All products fetch returned non-ok:', allProductsResponse.status, text)
+          }
+        } catch (innerErr) {
+          console.warn('All products debug fetch failed:', innerErr)
         }
-        
+
+        // Log status for main category request
+        console.log('Category products response status:', response.status, response.statusText)
+
+        if (!response.ok) {
+          // try to read response body for more context
+          let bodyText = ''
+          try {
+            bodyText = await response.text()
+          } catch (readErr) {
+            bodyText = `<unable to read response body: ${String(readErr)}>`
+          }
+          console.error('Category products fetch failed', { status: response.status, bodyText })
+          throw new Error(`Ürünler yüklenirken hata oluştu (status: ${response.status})`)
+        }
+
+        // Parse JSON and validate shape
         const data = await response.json()
+        if (!data || !Array.isArray(data.products)) {
+          console.error('API returned unexpected payload for category products:', data)
+          throw new Error('Ürünler yüklenirken beklenmeyen yanıt alındı')
+        }
+
         console.log('📦 API Response:', {
           success: data.success,
-          totalProducts: data.products?.length || 0,
-          products: data.products,
+          totalProducts: data.products.length,
           requestedCategory: dbCategory
         })
+
         setProducts(data.products || [])
         setFilteredProducts(data.products || [])
-        
+
       } catch (error) {
         console.error('Ürünler yüklenirken hata:', error)
         setProducts([])
